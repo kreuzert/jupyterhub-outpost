@@ -1,0 +1,13 @@
+fastapi==0.97.0
+httpx==0.24.1
+jupyterhub==4.0.1
+jupyter-core==5.3.1
+jupyter-server==2.7.2
+passlib==1.7.4
+psutil==5.9.5
+psycopg2-binary==2.9.7
+python-multipart==0.0.6
+pytest-asyncio==0.21.1
+sqlalchemy==2.0.16
+traitlets==5.9.0
+uvicorn==0.22.0

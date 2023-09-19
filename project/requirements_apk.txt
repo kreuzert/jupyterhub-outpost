@@ -1,0 +1,11 @@
+bash
+busybox-extras
+curl
+linux-headers
+mailcap
+net-tools
+openssl-dev
+openssh
+openssh-server
+pcre-dev
+uuidgen
