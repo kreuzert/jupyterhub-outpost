@@ -17,8 +17,8 @@ workflow:
       # On development branches we run tests and build throw-away images
     - if: $CI_COMMIT_TAG
       variables:
-        RUN_UNIT_TESTS: "True"
-        RUN_BUILD_DEVEL: "True"
+        RUN_UNIT_TESTS: "FTrue"
+        RUN_BUILD_DEVEL: "FTrue"
         RUN_BUILD_COMMIT_SHORT: "False"
         LATEST_TAG: "latest"
       # On tags we build an image on hun.docker.com and create a new helm chart
@@ -83,9 +83,9 @@ build-tag-docker:
     - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"${CI_REGISTRY_DOCKERHUB}\":{\"auth\":\"$(echo -n ${CI_REGISTRY_DOCKERHUB_USER}:${CI_REGISTRY_DOCKERHUB_PASSWORD} | base64)\"}}}" > /kaniko/.docker/config.json
     - sed -i -e "s/<VERSION>/${CI_COMMIT_TAG} (${CI_COMMIT_SHORT_SHA})/g" ${CI_PROJECT_DIR}/project/app/application.py
-    - /kaniko/executor --context ${CI_PROJECT_DIR} --dockerfile ${CI_PROJECT_DIR}/project/Dockerfile --destination ${CI_REGISTRY_DOCKERHUB_BASEIMAGE}/${CI_PROJECT_NAME}:${CI_COMMIT_TAG}
+    - /kaniko/executor --context ${CI_PROJECT_DIR} --dockerfile ${CI_PROJECT_DIR}/project/Dockerfile --destination ${CI_REGISTRY_DOCKERHUB_BASEIMAGE}/${CI_PROJECT_NAME}:${CI_COMMIT_TAG} --destination ${CI_REGISTRY_DOCKERHUB_BASEIMAGE}/${CI_PROJECT_NAME}:latest
   rules:
-    - if: $CI_COMMIT_TAG
+    - when: never
 
 build-helm-chart:
   stage: build-helm-chart
@@ -99,6 +99,7 @@ build-helm-chart:
     - git config user.name "Create Helm Chart"
     - git config user.email "none@mail.com"
     - sed -i -e "s/\<version\>/${CI_COMMIT_TAG}/g" helm/Chart.yaml
+    - sleep 1200
     - helm package helm -d charts
     - helm repo index charts/
     - git add charts
