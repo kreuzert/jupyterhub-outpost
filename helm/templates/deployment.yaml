@@ -5,9 +5,7 @@ metadata:
   labels:
     {{- include "jupyterhub-outpost.labels" . | nindent 4 }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
+  replicas: 1
   selector:
     matchLabels:
       {{- include "jupyterhub-outpost.selectorLabels" . | nindent 6 }}
@@ -27,16 +25,76 @@ spec:
       serviceAccountName: {{ include "jupyterhub-outpost.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.initContainers }}
+      initContainers:
+        {{- . | toYaml | nindent 8 }}
+      {{- end }}
       containers:
+        {{- with .Values.sidecars }}
+        {{- . | toYaml | nindent 8 }}
+        {{- end }}
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          {{- if .Values.extraPythonPackages }}
+          command: ["sh", "-c", "--"]
+          args:
+            {{- range .Values.extraPythonPackages }}
+            - "pip install {{- . -}}"
+            {{- end }}
+            - "/src/entrypoint.sh"
+          {{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
+            - name: ssh
+              containerPort: {{ .Values.service.sshport }}
+              protocol: TCP
+          env:
+            {{- if .Values.outpostConfig }}
+            - name: OUTPOST_CONFIG_FILE
+              value: "/mnt/outpost_config/outpost_config.py"
+            {{- else }}
+            - name: OUTPOST_CONFIG_FILE
+              value: "/home/jupyterhuboutpost/app/minimal_config.py"
+            {{- end }}
+            - name: OUTPOST_CRYPT_KEY
+              value: "{{ .Values.secretOutpostKey }}"
+            {{- with .Values.extraEnvVars }}
+            {{- . | toYaml | nindent 12 }}
+            {{- end }}
+          {{- if or .Values.extraEnvVarsCMs .Values.extraEnvVarsSecrets .Values.outpostUsers }}
+          envFrom:
+            {{- range .Values.extraEnvVarsCMs }}
+            - configMapRef:
+                name: {{ . -}}
+            {{- end }}
+            {{- range .Values.extraEnvVarsSecrets }}
+            - secretRef:
+                name: {{ . -}}
+            {{- end }}
+            {{- if .Values.outpostUsers }}
+            - secretRef:
+                name: {{ .Values.outpostUsers }}
+            {{- end }}
+          {{- end }}
+            
+
+          volumeMounts:
+            - mountPath: /home/jupyterhuboutpost/.ssh/authorized_keys
+              name: authorized-keys
+            {{- if .Values.outpostConfig }}
+            - mountPath: /mnt/outpost_config
+              name: outpost-config
+            {{- end }}
+            - mountPath: /home/jupyterhuboutpost/.ssh
+              name: authorized-keys
+            {{- with .Values.extraVolumeMounts }}
+            {{- . | toYaml | nindent 12 }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /
@@ -47,6 +105,18 @@ spec:
               port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: authorized-keys
+          configMap:
+            name: {{ include "jupyterhub-outpost.fullname" . }}-auth
+        {{- if .Values.outpostConfig }}
+        - name: outpost-config
+          configMap:
+            name: {{ include "jupyterhub-outpost.fullname" . }}-config
+        {{- end }}
+        {{- with: .Values.extraVolumes }}
+        {{- . | toYaml | nindent 8 }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

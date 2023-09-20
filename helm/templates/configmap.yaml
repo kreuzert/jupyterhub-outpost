@@ -1,0 +1,13 @@
+{{- if .Values.outpostConfig }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "jupyterhub-outpost.fullname" . }}-config
+  labels:
+    {{- include "jupyterhub-outpost.labels" . | nindent 4 }}
+data:
+  outpost_config.py: |
+    {{- range .Values.outpostConfig }}
+    {{ . -}}
+    {{- end }}
+{{- end }}
