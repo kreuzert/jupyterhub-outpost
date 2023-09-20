@@ -19,7 +19,7 @@ RUN apk add --virtual=build_dependencies build-base && \
     sed -i -r \
     -e "s/^#PasswordAuthentication yes/PasswordAuthentication no/g" \
     -e "s/^AllowTcpForwarding no/AllowTcpForwarding yes/g" \
-    -e "s/^#Port 22/Port 2222/g" \
+    -e "s/^#Port 22/Port 22/g" \
     /etc/ssh/sshd_config && \
     sed -i -r \
     -e "s/^${USERNAME}:!:/${USERNAME}::/g" \
@@ -34,10 +34,3 @@ RUN chown -R ${USERNAME}:users ${HOME} && \
     chmod 755 /src/entrypoint.sh
 
 ENTRYPOINT ["/src/entrypoint.sh"]
-# CMD ["uvicorn", "app.main:app", "--proxy-headers", "--host", "0.0.0.0", "--port", "8080"]
-
-
-# Todo
-# Tunneling
-# APIEndpoint for Tunneling
-# Test Dockerfile

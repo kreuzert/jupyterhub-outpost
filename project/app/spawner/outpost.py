@@ -346,7 +346,7 @@ class JupyterHubOutpost(Application):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.spawners = {}
-        config_file = os.environ.get("SPAWNER_CONFIG_FILE", "spawner_config.py")
+        config_file = os.environ.get("OUTPOST_CONFIG_FILE", "spawner_config.py")
         self.load_config_file(config_file)
         self.init_logging()
         self.log.debug(f"Load config file: {config_file}")
