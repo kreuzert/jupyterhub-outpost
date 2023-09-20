@@ -2,8 +2,18 @@ apiVersion: v1
 entries:
   jupyterhub-outpost:
   - apiVersion: v2
+    appVersion: 0.1.2-alpha.3
+    created: "2023-09-20T19:25:14.526522238Z"
+    description: A Helm chart for Kubernetes
+    digest: dc82aa0c33eba82cfde8a3e5cc534968225cbe2a9273ff1158d27d1b9a40ea79
+    name: jupyterhub-outpost
+    type: application
+    urls:
+    - jupyterhub-outpost-0.1.2-alpha.3.tgz
+    version: 0.1.2-alpha.3
+  - apiVersion: v2
     appVersion: 0.1.2-alpha.2
-    created: "2023-09-20T19:09:00.243137833Z"
+    created: "2023-09-20T19:25:14.526013998Z"
     description: A Helm chart for Kubernetes
     digest: f71458e4297ffe34cfd37de49befcc173758e892b20b546da1b550b2b639b64e
     name: jupyterhub-outpost
@@ -13,7 +23,7 @@ entries:
     version: 0.1.2-alpha.2
   - apiVersion: v2
     appVersion: 0.1.2-alpha.1
-    created: "2023-09-20T19:09:00.242627828Z"
+    created: "2023-09-20T19:25:14.525560528Z"
     description: A Helm chart for Kubernetes
     digest: e7a69afedb0f1e9c2b65673f789d8e0bed520826c4daa023b3e6ec7c25681e78
     name: jupyterhub-outpost
@@ -23,7 +33,7 @@ entries:
     version: 0.1.2-alpha.1
   - apiVersion: v2
     appVersion: 0.1.0
-    created: "2023-09-20T19:09:00.242156963Z"
+    created: "2023-09-20T19:25:14.525151758Z"
     description: A Helm chart for Kubernetes
     digest: c1183db792614a160cc7eea2c32010c273928092c89d48198d180be956efb392
     name: jupyterhub-outpost
@@ -31,4 +41,4 @@ entries:
     urls:
     - jupyterhub-outpost-0.1.0.tgz
     version: 0.1.0
-generated: "2023-09-20T19:09:00.241279066Z"
+generated: "2023-09-20T19:25:14.524625628Z"
