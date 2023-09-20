@@ -8,19 +8,20 @@ stages:
 
 workflow:
   rules:
-    - if: $CI_COMMIT_BRANCH != "main"
+    - if: $CI_COMMIT_BRANCH != "main" && $CI_COMMIT_BRANCH != "charts"
       variables:
         RUN_UNIT_TESTS: "True"
         RUN_BUILD_DEVEL: "True"
         RUN_BUILD_COMMIT_SHORT: "True"
         LATEST_TAG: "dev"
-    - if: $CI_COMMIT_BRANCH == "main"
+      # On development branches we run tests and build throw-away images
     - if: $CI_COMMIT_TAG
       variables:
         RUN_UNIT_TESTS: "True"
         RUN_BUILD_DEVEL: "True"
         RUN_BUILD_COMMIT_SHORT: "False"
         LATEST_TAG: "latest"
+      # On tags we build an image on hun.docker.com and create a new helm chart
     - when: never
 
 unittests:
@@ -71,7 +72,7 @@ build-tag:
     - sed -i -e "s/<VERSION>/${CI_COMMIT_TAG} (${CI_COMMIT_SHORT_SHA})/g" ${CI_PROJECT_DIR}/project/app/application.py
     - /kaniko/executor --context ${CI_PROJECT_DIR} --dockerfile ${CI_PROJECT_DIR}/project/Dockerfile --destination ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG} --destination ${CI_REGISTRY_IMAGE}:latest
   rules:
-    - if: $CI_COMMIT_TAG
+    - when: never
 
 build-tag-docker:
   stage: build-tag-docker
@@ -91,14 +92,18 @@ build-helm-chart:
   image:
     name: alpine/helm:3.12.3
   script:
-    - sleep 1200
+    - cd ..
+    - git clone --single-branch --branch charts --depth 1 https://oauth2:${PRIVATE_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}.git charts
+    - cd charts
     - git remote add alias_link https://oauth2:${PRIVATE_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}.git || true
     - git config user.name "Create Helm Chart"
     - git config user.email "none@mail.com"
+    - sed -i -e "s/\<version\>/${CI_COMMIT_TAG}/g" helm/Chart.yaml
     - helm package helm -d charts
     - helm repo index charts/
     - git add charts
-    - git commit -m "add ${CI_COMMIT_BRANCH}.tar.gz helm chart"
-    - git push -u alias_link
+    - git commit -m "add ${CI_COMMIT_TAG}.tar.gz helm chart"
+    - git push -u alias_link HEAD:charts
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_TAG
+
