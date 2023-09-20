@@ -42,7 +42,7 @@ class JupyterHubOutpost(Application):
     You can configure your own JupyterHub Spawner
     like you're used to do for JupyterHub itself.
 
-    Example config file ( at $SPAWNER_CONFIG_FILE):
+    Example config file ( at $OUTPOST_CONFIG_FILE):
     ```
     from jupyterhub.spawner import SimpleLocalProcessSpawner
     c.JupyterHubOutpost.spawner_class = SimpleLocalProcessSpawner

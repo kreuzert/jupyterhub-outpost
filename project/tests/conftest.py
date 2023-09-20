@@ -31,7 +31,7 @@ def app(spawner_config, monkeypatch) -> Generator[FastAPI, Any, None]:
     """
     Create a fresh database on each test case.
     """
-    monkeypatch.setenv("SPAWNER_CONFIG_FILE", spawner_config)
+    monkeypatch.setenv("OUTPOST_CONFIG_FILE", spawner_config)
     _app = start_application()
     import spawner
     from spawner import hub

@@ -19,6 +19,6 @@ fi
 cd $HOME
 su ${USERNAME}
 
-export SPAWNER_CONFIG_FILE=${SPAWNER_CONFIG_FILE:-${APP_HOME}/outpost_config.py}
+export OUTPOST_CONFIG_FILE=${SPAWNER_CONFIG_FILE:-${APP_HOME}/minimal_config.py}
 
 uvicorn --app-dir app main:app --proxy-headers --host ${HOST:-0.0.0.0} --port ${PORT:-8080} ${@}
