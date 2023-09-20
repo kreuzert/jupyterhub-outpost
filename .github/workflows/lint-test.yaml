@@ -2,8 +2,8 @@ name: Lint and Test Charts
 
 on:
   push:
-    tags:
-      - '*'
+    branches:
+      - main
 
 jobs:
   lint-test:
