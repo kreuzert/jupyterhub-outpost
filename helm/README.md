@@ -5,7 +5,7 @@
 [![Documentation Status](https://readthedocs.org/projects/jupyterhub-outpostspawner/badge/?version=latest)](https://jupyterhub-outpostspawner.readthedocs.io/en/latest/?badge=latest)
 [![GitHub JupyterHub Outpost](https://img.shields.io/badge/Source_code-github-blue?logo=github&logoColor=white)](https://github.com/kreuzert/jupyterhub-outpost)
 
-JupyterHub Outpost can be used as an additional, external source to start and manage single-user servers. Like in JupyterHub itself, different Spawners can be configured at the Outpost. It's best used togehter with the [jupyterhub-outpostspawner](https://pypi.org/project/jupyterhub-outpostspawner/) configured at JupyterHub.
+JupyterHub Outpost can be used as an additional, external source to start and manage single-user servers. Like in JupyterHub itself, different Spawners can be configured at the Outpost. It's best used together with the [jupyterhub-outpostspawner](https://pypi.org/project/jupyterhub-outpostspawner/) configured at JupyterHub.
 
 [Overview of JupyterHub OutpostSpawner and JupyterHub Outpost](https://jupyterhub-outpostspawner.readthedocs.io/)
 
@@ -116,4 +116,3 @@ extraEnvVarsSecrets:
 ### More
 
 More configurations can be found within the templates. If anything is missing, please create an issue on GitHub and it will be added. If you want to contribute, feel free to also add an issue to contact us.
-
