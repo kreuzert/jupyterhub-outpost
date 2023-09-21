@@ -1,6 +1,8 @@
 apiVersion: v2
 name: jupyterhub-outpost
-description: A Helm chart for Kubernetes
+description: Start single-user server via JupyterHub on multiple systems
+keywords: [jupyter, jupyterhub, python, fastapi]
+sources: [https://github.com/kreuzert/jupyterhub-outpost]
 
 # A chart can be either an 'application' or a 'library' chart.
 #

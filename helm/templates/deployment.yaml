@@ -62,7 +62,10 @@ spec:
               value: "/home/jupyterhuboutpost/app/minimal_config.py"
             {{- end }}
             - name: OUTPOST_CRYPT_KEY
-              value: "{{ .Values.secretOutpostKey }}"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.cryptSecret }}
+                  key: secret_key
             {{- with .Values.extraEnvVars }}
             {{- . | toYaml | nindent 12 }}
             {{- end }}

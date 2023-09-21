@@ -34,8 +34,19 @@ To install the chart with the release name `my-jupyterhub-outpost`:
 
 ```console
 SECRET_KEY=$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')
+
+kubectl create secret generic outpost-users --from-literal=usernames=jupyterhub1 --from-literal=passwords=passwd1
+kubectl create secret generic outpost-cryptkey --from-literal=secret_key=${SECRET_KEY}
+
+cat <<EOF >> values.yaml
+cryptSecret: outpost-cryptkey
+outpostUsers: outpost-users
+sshPublicKeys:
+  - ssh-ed25519 AAAC3....
+EOF
+
 helm repo add jupyterhub-outpost https://kreuzert.github.io/jupyterhub-outpost/charts/
-helm install my-jupyterhub-outpost jupyterhub-outpost/jupyterhub-outpost --version <version> --set secretOutpostKey=${SECRET_KEY} --set "sshPublicKeys={ssh-ed25519 AAAAC3...,ssh-ed25519 AAAAC3...}"
+helm install my-jupyterhub-outpost jupyterhub-outpost/jupyterhub-outpost --version <version> -f values.yaml"
 ```
 
 The command deploys JupyterHub Outpost on the Kubernetes cluster in the default configuration. At least one public key should be configured at `sshPublicKeys`. If multiple JupyterHubs should be supported, you need one ssh public key for each JupyterHub. Additionally, a secret with usernames / passwords for these JupyterHubs is required (see `outpostUsers` parameter). To add a custom configuration (like `jupyterhub_config.py` for JupyterHub) override the `outpostConfig` configuration. It will be stored in a ConfigMap and mounted into the deployment.
@@ -57,7 +68,7 @@ helm delete --purge my-jupyterhub-outpost
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
 | `nameOverride`           | String to partially override common.names.fullname template (will maintain the release name)                                                             | `""`  |
 | `fullnameOverride`       | String to fully override common.names.fullname template                                                                                                  | `""`  |
-| `secretOutpostKey`       | Existing secret containing `secret_key`. To create a key run `python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'` | `""`  |
+| `cryptSecret`            | Existing secret containing `secret_key`. To create a key run `python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'` | `""`  |
 | `sshPublicKeys`          | Public keys, to enable port-forwarding from JupyterHub to the Outpost. May containt ssh options like `from=...`                                          | `[]`  |
 | `outpostUsers`           | Name of existing Secret with `usernames` and `passwords`. Multiple values must be semicolon separated                                                    | `""`  |
 | `outpostConfig`          | Configuration of Outpost Application. See documentation for more information.                                                                            | `""`  |
