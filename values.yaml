@@ -1,0 +1,4 @@
+cryptSecret: outpost-cryptkey
+outpostUsers: outpost-users
+sshPublicKeys:
+  - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINVPeRNKjiCxuoiOZ8f3lmiaiLVaxdJVMacL6SiS3jnJ

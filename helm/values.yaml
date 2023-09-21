@@ -37,11 +37,18 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  sshport: 22
   annotations: {}
   ports:
     nodePort:
-    sshNodePort: 
+  extraPorts: []
+  loadBalancerIP: 
+
+servicessh:
+  type: ClusterIP
+  port: 22
+  annotations: {}
+  ports:
+    nodePort:
   extraPorts: []
   loadBalancerIP: 
 
