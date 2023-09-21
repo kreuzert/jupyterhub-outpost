@@ -46,7 +46,7 @@ sshPublicKeys:
 EOF
 
 helm repo add jupyterhub-outpost https://kreuzert.github.io/jupyterhub-outpost/charts/
-helm install my-jupyterhub-outpost jupyterhub-outpost/jupyterhub-outpost --version <version> -f values.yaml"
+helm install my-jupyterhub-outpost jupyterhub-outpost/jupyterhub-outpost --version <version> -f values.yaml
 ```
 
 The command deploys JupyterHub Outpost on the Kubernetes cluster in the default configuration. At least one public key should be configured at `sshPublicKeys`. If multiple JupyterHubs should be supported, you need one ssh public key for each JupyterHub. Additionally, a secret with usernames / passwords for these JupyterHubs is required (see `outpostUsers` parameter). To add a custom configuration (like `jupyterhub_config.py` for JupyterHub) override the `outpostConfig` configuration. It will be stored in a ConfigMap and mounted into the deployment.
