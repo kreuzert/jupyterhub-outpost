@@ -81,7 +81,7 @@ affinity: {}
 
 
 # Outpost Configuration
-secretOutpostKey: ""
+cryptSecret: ""
 sshPublicKeys: []
 outpostUsers: ""
 outpostConfig: ""

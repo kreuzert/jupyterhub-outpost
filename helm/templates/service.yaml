@@ -24,6 +24,6 @@ spec:
       {{- with .Values.service.ports.sshNodePort }}
       nodePort: {{ . }}
       {{- end }}
-    {{- with .Values.hub.service.extraPorts }}
+    {{- with .Values.service.extraPorts }}
     {{- . | toYaml | nindent 4 }}
     {{- end }}
