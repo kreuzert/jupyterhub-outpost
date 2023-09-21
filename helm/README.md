@@ -13,6 +13,7 @@ JupyterHub Outpost can be used as an additional, external source to start and ma
 
 ```console
 helm repo add jupyterhub-outpost https://kreuzert.github.io/jupyterhub-outpost/charts/
+helm repo update
 helm install my-jupyterhub-outpost jupyterhub-outpost/jupyterhub-outpost --version <version>
 ```
 
@@ -46,6 +47,7 @@ sshPublicKeys:
 EOF
 
 helm repo add jupyterhub-outpost https://kreuzert.github.io/jupyterhub-outpost/charts/
+helm repo update
 helm install my-jupyterhub-outpost jupyterhub-outpost/jupyterhub-outpost --version <version> -f values.yaml
 ```
 
