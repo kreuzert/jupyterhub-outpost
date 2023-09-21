@@ -2,7 +2,7 @@
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jupyterhub-outpost)](https://artifacthub.io/packages/search?repo=jupyterhub-outpost)
 [![Documentation Status](https://readthedocs.org/projects/jupyterhub-outpostspawner/badge/?version=latest)](https://jupyterhub-outpostspawner.readthedocs.io/en/latest/?badge=latest)
 
-JupyterHub Outpost can be used as an additional, external source to start and manage single-user servers. Like in JupyterHub itself, different Spawners can be configured at the Outpost. It's best used togehter with the [jupyterhub-outpostspawner](https://pypi.org/project/jupyterhub-outpostspawner/) configured at JupyterHub.
+JupyterHub Outpost can be used as an additional, external source to start and manage single-user servers. Like in JupyterHub itself, different Spawners can be configured at the Outpost. It's best used together with the [jupyterhub-outpostspawner](https://pypi.org/project/jupyterhub-outpostspawner/) configured at JupyterHub.
 
 [Overview of JupyterHub OutpostSpawner and JupyterHub Outpost](https://jupyterhub-outpostspawner.readthedocs.io/)
 
