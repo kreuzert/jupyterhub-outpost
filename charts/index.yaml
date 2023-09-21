@@ -2,8 +2,25 @@ apiVersion: v1
 entries:
   jupyterhub-outpost:
   - apiVersion: v2
+    appVersion: 0.1.1
+    created: "2023-09-21T09:04:16.343211248Z"
+    description: Start single-user server via JupyterHub on multiple systems
+    digest: e2bdac3475d9c65993bdfc493c56bf1355aa79478530770db5927028afd22be8
+    keywords:
+    - jupyter
+    - jupyterhub
+    - python
+    - fastapi
+    name: jupyterhub-outpost
+    sources:
+    - https://github.com/kreuzert/jupyterhub-outpost
+    type: application
+    urls:
+    - jupyterhub-outpost-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
     appVersion: 0.1.0
-    created: "2023-09-21T10:59:59.088020474+02:00"
+    created: "2023-09-21T09:04:16.342356756Z"
     description: A Helm chart for Kubernetes
     digest: c1183db792614a160cc7eea2c32010c273928092c89d48198d180be956efb392
     name: jupyterhub-outpost
@@ -11,4 +28,4 @@ entries:
     urls:
     - jupyterhub-outpost-0.1.0.tgz
     version: 0.1.0
-generated: "2023-09-21T10:59:59.087341289+02:00"
+generated: "2023-09-21T09:04:16.341609385Z"
