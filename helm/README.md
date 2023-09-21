@@ -72,7 +72,7 @@ helm delete --purge my-jupyterhub-outpost
 | `sshPublicKeys`          | Public keys, to enable port-forwarding from JupyterHub to the Outpost. May containt ssh options like `from=...`                                          | `[]`  |
 | `outpostUsers`           | Name of existing Secret with `usernames` and `passwords`. Multiple values must be semicolon separated                                                    | `""`  |
 | `outpostConfig`          | Configuration of Outpost Application. See documentation for more information.                                                                            | `""`  |
-| `extraPythonPackages     | Array containing python packages, that should be installed (normally the Spawner you want to configure)                                                  | `[]`  |
+| `extraPythonPackages`    | Array containing python packages, that should be installed (normally the Spawner you want to configure)                                                  | `[]`  |
 
 ### Extra Envs / Secrets / Containers
 
