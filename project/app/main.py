@@ -15,7 +15,12 @@ log = logging.getLogger("uvicorn")
 
 @app.get("/")
 def main():
-    return RedirectResponse(url="/docs/")
+    return RedirectResponse(url="/docs")
+
+
+@app.get("/ping")
+def ping():
+    return {"ping": "pong!"}
 
 
 @app.on_event("startup")
