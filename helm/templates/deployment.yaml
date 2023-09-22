@@ -51,7 +51,7 @@ spec:
               containerPort: 8080
               protocol: TCP
             - name: ssh
-              containerPort: {{ .Values.service.sshport }}
+              containerPort: {{ .Values.servicessh.port }}
               protocol: TCP
           env:
             {{- if .Values.outpostConfig }}
