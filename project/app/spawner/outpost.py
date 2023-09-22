@@ -200,9 +200,12 @@ class JupyterHubOutpost(Application):
                 _outpostspawner_start_future = asyncio.ensure_future(
                     self._outpostspawner_db_start_call(db)
                 )
-                asyncio.ensure_future(
-                    self._outpostspawner_forward_events(_outpostspawner_start_future)
-                )
+                if self.env.get("JUPYTERHUB_EVENTS_URL", ""):
+                    asyncio.ensure_future(
+                        self._outpostspawner_forward_events(
+                            _outpostspawner_start_future
+                        )
+                    )
                 await asyncio.wait([_outpostspawner_start_future])
                 try:
                     return _outpostspawner_start_future.result()
