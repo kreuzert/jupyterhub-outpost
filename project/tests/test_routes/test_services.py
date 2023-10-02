@@ -8,6 +8,7 @@ from tests.conftest import auth_user_b64
 from tests.conftest import auth_user_wrong_pw
 
 jupyterhub_name = "authenticated"
+jupyterhub_name2 = "authenticated2"
 
 headers_auth_user = {"Authorization": f"Basic {auth_user_b64}"}
 
@@ -15,11 +16,12 @@ headers_auth_user2 = {"Authorization": f"Basic {auth_user2_b64}"}
 
 headers_auth_wrong_pw = {"Authorization": f"Basic {auth_user_wrong_pw}"}
 
-sample_direct = "./tests/test_routes/simple_direct.py"
-sample_direct_sanitized = "./tests/test_routes/simple_direct_sanitized.py"
+simple_direct = "./tests/test_routes/simple_direct.py"
+simple_override = "./tests/test_routes/simple_override.py"
+simple_direct_sanitized = "./tests/test_routes/simple_direct_sanitized.py"
 
 
-@pytest.mark.parametrize("spawner_config", [sample_direct])
+@pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_create_get(client):
     service_name = "user-servername"
     service_data = {"name": service_name, "env": {"JUPYTERHUB_USER": "user1"}}
@@ -33,7 +35,7 @@ def test_create_get(client):
     assert response.json().get("status", "") == 0
 
 
-@pytest.mark.parametrize("spawner_config", [sample_direct])
+@pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_create_get_running(client):
     service_name = "user-servername"
     service_data = {"name": service_name, "misc": {"cmd": "sleep", "args": "5"}}
@@ -47,7 +49,7 @@ def test_create_get_running(client):
     assert response.json().get("status", "") == None
 
 
-@pytest.mark.parametrize("spawner_config", [sample_direct])
+@pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_delete(client, db_session):
     service_name = "user-servername"
     service_data = {"name": service_name, "misc": {"cmd": "sleep", "args": "5"}}
@@ -70,7 +72,7 @@ def test_delete(client, db_session):
         get_service(jupyterhub_name, service_name, db_session)
 
 
-@pytest.mark.parametrize("spawner_config", [sample_direct])
+@pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_list_respects_authentication(client):
     response = client.get("/services/", headers=headers_auth_user)
     assert response.status_code == 200, response.text
@@ -87,7 +89,7 @@ def test_list_respects_authentication(client):
     assert response.json() == []
 
 
-@pytest.mark.parametrize("spawner_config", [sample_direct])
+@pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_401_endpoints(client):
     response = client.get("/services/0", headers=headers_auth_wrong_pw)
     assert response.status_code == 401, response.text
@@ -103,38 +105,38 @@ def test_401_endpoints(client):
     assert response.status_code == 401, response.text
 
 
-@pytest.mark.parametrize("spawner_config", [sample_direct])
+@pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_list(client):
     response = client.get("/services/", headers=headers_auth_user)
     assert response.status_code == 200, response.text
     assert response.json() == []
 
 
-@pytest.mark.parametrize("spawner_config", [sample_direct])
+@pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_404_get(client):
     response = client.get("/services/0", headers=headers_auth_user)
     assert response.status_code == 404, response.text
 
 
-@pytest.mark.parametrize("spawner_config", [sample_direct])
+@pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_404_delete(client):
     response = client.delete("/services/0", headers=headers_auth_user)
     assert response.status_code == 404, response.text
 
 
-@pytest.mark.parametrize("spawner_config", [sample_direct])
+@pytest.mark.parametrize("spawner_config", [simple_direct])
 def not_yet_test_404_patch(client):
     response = client.patch("/services/0")
     assert response.status_code == 404, response.text
 
 
-@pytest.mark.parametrize("spawner_config", [sample_direct])
+@pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_create_start_sanitize_default(client):
     response = client.post("/services", json={"name": 0}, headers=headers_auth_user)
     assert response.json().get("service", "") == "127.0.0.1:4567"
 
 
-@pytest.mark.parametrize("spawner_config", [sample_direct_sanitized])
+@pytest.mark.parametrize("spawner_config", [simple_direct_sanitized])
 def test_create_start_sanitize(client):
     service_name = "user-servername"
     response = client.post(
@@ -143,7 +145,7 @@ def test_create_start_sanitize(client):
     assert response.json().get("service", "") == "127.0.0.1--4567"
 
 
-@pytest.mark.parametrize("spawner_config", [sample_direct])
+@pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_last_update_updated(client, db_session):
     service_name = "user-servername"
     service_data = {"name": service_name}
@@ -157,7 +159,7 @@ def test_last_update_updated(client, db_session):
     assert after_spawn != after_poll
 
 
-@pytest.mark.parametrize("spawner_config", [sample_direct])
+@pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_do_not_get_other_services(client, db_session):
     service_name = "user-servername"
     service_data = {"name": service_name}
@@ -169,7 +171,7 @@ def test_do_not_get_other_services(client, db_session):
     assert response.status_code == 404
 
 
-@pytest.mark.parametrize("spawner_config", [sample_direct])
+@pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_do_not_delete_other_services(client, db_session):
     service_name = "user-servername"
     service_data = {"name": service_name}
@@ -183,7 +185,7 @@ def test_do_not_delete_other_services(client, db_session):
     assert response.status_code == 200
 
 
-@pytest.mark.parametrize("spawner_config", [sample_direct])
+@pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_allow_same_name_twice_different_jupyterhub(client, db_session):
     # Two different jupyterhub can start services with the same name
     service_name = "user-servername"
@@ -198,3 +200,46 @@ def test_allow_same_name_twice_different_jupyterhub(client, db_session):
     state3 = decrypt(service3.state)
     assert state1["pid"] != state2["pid"]
     assert state1["pid"] == state3["pid"]
+
+
+@pytest.mark.parametrize("spawner_config", [simple_override])
+def test_override_allowed(client, db_session):
+    # Two different jupyterhub can start services with the same name
+    service_name = "user-servername"
+    service_data = {"name": service_name, "misc": {"image": "override_image"}}
+    response = client.post("/services", json=service_data, headers=headers_auth_user)
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize("spawner_config", [simple_override])
+def test_override_allowed_419(client, db_session):
+    # Two different jupyterhub can start services with the same name
+    service_name = "user-servername"
+    service_data = {"name": service_name, "misc": {"image": "override_image"}}
+    response = client.post("/services", json=service_data, headers=headers_auth_user2)
+    assert response.status_code == 419
+
+
+@pytest.mark.parametrize("spawner_config", [simple_override])
+def test_override_allowed_419_error_msg(client, db_session):
+    # Two different jupyterhub can start services with the same name
+    service_name = "user-servername"
+    service_data = {"name": service_name, "misc": {"image": "override_image"}}
+    response = client.post("/services", json=service_data, headers=headers_auth_user2)
+    x = response.status_code
+    assert response.status_code == 419
+    args_list = [str(s) for s in response.json().get("args", [])]
+    message = f"{response.json().get('module')}{response.json().get('class')}: {' - '.join(args_list)}"
+    assert (
+        message
+        == f"Exception: {jupyterhub_name2} is not allowed to override the configuration. Used keys: {list(service_data.get('misc', {}).keys())}"
+    )
+
+
+@pytest.mark.parametrize("spawner_config", [simple_override])
+def test_override_allowed_no_misc_always_allowed(client, db_session):
+    # Two different jupyterhub can start services with the same name
+    service_name = "user-servername"
+    service_data = {"name": service_name}
+    response = client.post("/services", json=service_data, headers=headers_auth_user2)
+    assert response.status_code == 200

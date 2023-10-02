@@ -93,7 +93,30 @@ class JupyterHubOutpost(Application):
             self.spawners[f"{jupyterhub_name}-{service_name}"] = spawner
         return self.spawners[f"{jupyterhub_name}-{service_name}"]
 
+    allow_override = Any(
+        default_value=None,
+        help="""
+        An optional hook function that you can implement to modify the
+        response of the start process. 
+        
+        The result of this function will be sent to JupyterHub in the Location
+        header.
+        
+        This maybe a coroutine.
+
+        Example::
+            async def allow_override(jupyterhub_credential, misc):
+                if jupyterhub_credential == "jupyterhub":
+                    return True
+                return False
+
+            c.JupyterHubOutpost.allow_override = allow_override
+
+        """,
+    ).tag(config=True)
+
     sanitize_start_response = Any(
+        default_value=None,
         help="""
         An optional hook function that you can implement to modify the
         response of the start process. 
@@ -107,9 +130,9 @@ class JupyterHubOutpost(Application):
             async def my_sanitize_start_response(spawner, start_response):
                 return f"{start_response[0]}:{start_response[1]}"
 
-            c.Spawner.sanitize_start_response = my_sanitize_start_response
+            c.JupyterHubOutpost.sanitize_start_response = my_sanitize_start_response
 
-        """
+        """,
     ).tag(config=True)
 
     request_kwargs = Union(
@@ -265,6 +288,15 @@ class JupyterHubOutpost(Application):
                 db.delete(service)
                 db.commit()
                 return ret
+
+        if wrapper.allow_override and orig_body.get("misc", {}):
+            ret = wrapper.allow_override(jupyterhub_name, orig_body.get("misc", {}))
+            if inspect.isawaitable(ret):
+                ret = await ret
+            if not ret:
+                raise Exception(
+                    f"{jupyterhub_name} is not allowed to override the configuration. Used keys: {list(orig_body.get('misc', {}).keys())}"
+                )
 
         spawner_class_name = (
             wrapper.config.get("JupyterHubOutpost", {})

@@ -33,6 +33,26 @@ def app(spawner_config, monkeypatch) -> Generator[FastAPI, Any, None]:
     """
     monkeypatch.setenv("OUTPOST_CONFIG_FILE", spawner_config)
     _app = start_application()
+
+    from exceptions import SpawnerException
+    from fastapi import Request
+    from fastapi.responses import JSONResponse
+
+    @_app.exception_handler(SpawnerException)
+    async def spawner_exception_handler(
+        request: Request, exc: SpawnerException
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=419,
+            content={
+                "module": exc.module,
+                "class": exc.class_name,
+                "traceback": exc.traceback,
+                "args": exc.args,
+                "kwargs": exc.kwargs,
+            },
+        )
+
     import spawner
     from spawner import hub
     from uuid import uuid4
