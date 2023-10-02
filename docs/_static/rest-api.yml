@@ -51,7 +51,7 @@ paths:
                 type: object
                 properties:
                   status:
-                    type: string | None
+                    type: string
     post:
       summary: Start service
       description: |
@@ -149,4 +149,10 @@ paths:
       responses:
         200:
           description: Pong
-          content: {"ping": "pong"}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ping:
+                    type: string
