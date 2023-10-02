@@ -2,8 +2,25 @@ apiVersion: v1
 entries:
   jupyterhub-outpost:
   - apiVersion: v2
+    appVersion: 0.2.5-dev.1
+    created: "2023-10-02T18:32:14.253131275Z"
+    description: Start single-user server via JupyterHub on multiple systems
+    digest: 09942cb40f62a2f26f56d9bb09eba85968db9f3db19290b972c5dd753426bece
+    keywords:
+    - jupyter
+    - jupyterhub
+    - python
+    - fastapi
+    name: jupyterhub-outpost
+    sources:
+    - https://github.com/kreuzert/jupyterhub-outpost
+    type: application
+    urls:
+    - jupyterhub-outpost-0.2.5-dev.1.tgz
+    version: 0.2.5-dev.1
+  - apiVersion: v2
     appVersion: 0.2.4
-    created: "2023-09-22T13:13:18.958488022Z"
+    created: "2023-10-02T18:32:14.252503628Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 83f9163585928839547da90ead32cc97d82a5850eedc012a42bfcc5e3dfbf49c
     keywords:
@@ -20,7 +37,7 @@ entries:
     version: 0.2.4
   - apiVersion: v2
     appVersion: 0.2.3
-    created: "2023-09-22T13:13:18.95784728Z"
+    created: "2023-10-02T18:32:14.251893378Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 15231bf52c347886ce3e3fdf59ef930f1e3305c18b30e52e7df4ef3099906fe3
     keywords:
@@ -37,7 +54,7 @@ entries:
     version: 0.2.3
   - apiVersion: v2
     appVersion: 0.2.2
-    created: "2023-09-22T13:13:18.95728517Z"
+    created: "2023-10-02T18:32:14.251247043Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 8037f89f1bae5ebd209a004e7c5076dfad44e870e788e523adad4790b16dd7bd
     keywords:
@@ -54,7 +71,7 @@ entries:
     version: 0.2.2
   - apiVersion: v2
     appVersion: 0.2.1
-    created: "2023-09-22T13:13:18.956708769Z"
+    created: "2023-10-02T18:32:14.250650101Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 00a78e32db086069cb17e4badf220fa7177429fa96ec370c4e611887ff0c80fb
     keywords:
@@ -71,7 +88,7 @@ entries:
     version: 0.2.1
   - apiVersion: v2
     appVersion: 0.2.0
-    created: "2023-09-22T13:13:18.956131589Z"
+    created: "2023-10-02T18:32:14.249985137Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 15db511d5fbc6182f9c0d9b19835d817fdc270082cd0d8a4849c9df673c2bd81
     keywords:
@@ -86,4 +103,4 @@ entries:
     urls:
     - jupyterhub-outpost-0.2.0.tgz
     version: 0.2.0
-generated: "2023-09-22T13:13:18.955413737Z"
+generated: "2023-10-02T18:32:14.248947569Z"
