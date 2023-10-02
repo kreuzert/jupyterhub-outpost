@@ -1,0 +1,11 @@
+autodoc-traits
+sphinx-jsonschema
+sphinx-copybutton
+sphinx-book-theme
+sphinxext-opengraph
+myst-parser>=0.17.0
+sphinxext-rediraffe
+pytablewriter>=0.56
+breathe==4.35.0
+sphinx==7.2.6
+sphinx-rtd-theme==1.3.0

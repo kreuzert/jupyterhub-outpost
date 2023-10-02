@@ -1,0 +1,152 @@
+openapi: 3.0.3
+info:
+  title: JupyterHub Outpost service
+  description: The REST API for JupyterHub Outpost service
+  license:
+    name: BSD-3-Clause
+servers:
+  - url: /
+security:
+  - token: []
+paths:
+  /services/:
+    get:
+      summary: List all services for used credentials
+      responses:
+        200:
+          description: List of services for used credentials
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    start_date:
+                      type: datetime
+                    last_update:
+                      type: datetime
+                    start_pending:
+                      type: boolean
+                    stop_pending:
+                      type: boolean
+  /services/{service_name}:
+    get:
+      summary: Get status of service
+      parameters:
+        - name: service_name
+          in: path
+          description: service name
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: List of services for used credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string | None
+    post:
+      summary: Start service
+      description: |
+        Start single-user server.
+      parameters:
+        - name: name
+          in: path
+          description: username
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: |
+          Information used to define single-user server.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  required: true
+                env:
+                  type: object
+                  required: false
+                  default: {}
+                user_options:
+                  type: object
+                  required: false
+                  default: {}
+                misc:
+                  type: object
+                  required: false
+                  description: |
+                    Override JupyterHub Outpost Spawner configuration. `c.Spawner.<key> = <value>` , with `misc = { key: value }`
+                  default: {}
+                certs:
+                  type: object
+                  required: false
+                  description: |
+                    If defined, JupyterHub Outpost will use `c.JupyterHub.internal_ssl = True` feature.
+                  default: {}
+                internal_trust_bundles:
+                  type: object
+                  required: false
+                  description: |
+                    Some Spawners, like KubeSpawner, need this when using certificates.
+                  default: {}
+              example:
+                name: service_name_1
+                env:
+                  JUPYTERHUB_USER_NAME: user1
+                user_options:
+                  profile: profile1
+                misc:
+                  image: custom/lab-image:latest
+      responses:
+        200:
+          description: Service was started.
+          content: {}
+        419:
+          description: Configured Spawner threw an exception.
+          content: 
+            application/json:
+              schema:
+                type: object
+                properties:
+                  module:
+                    type: string
+                  class:
+                    type: string
+                  traceback:
+                    type: string
+                  args:
+                    type: array
+                  kwargs:
+                    type: object
+    delete:
+      summary: Stop single-user server and delete service
+      parameters:
+        - name: service_name
+          in: path
+          description: service name
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Service deleted
+          content: {}
+  /ping:
+    get:
+      summary: Ping
+      responses:
+        200:
+          description: Pong
+          content: {"ping": "pong"}
