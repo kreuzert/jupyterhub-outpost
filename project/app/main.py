@@ -27,49 +27,53 @@ def ping():
 async def recreate_tunnels():
     wrapper = get_wrapper()
 
-    if callable(wrapper.ssh_recreate_at_start):
-        ssh_recreate_at_start = wrapper.ssh_recreate_at_start(wrapper)
-        if inspect.isawaitable(ssh_recreate_at_start):
-            ssh_recreate_at_start = await ssh_recreate_at_start
-    else:
-        ssh_recreate_at_start = wrapper.ssh_recreate_at_start
+    log.info("Recreate ssh tunnels during start up")
+    from database import SessionLocal
 
-    if ssh_recreate_at_start:
-        log.info("Recreate ssh tunnels during start up")
-        from database import SessionLocal
-
-        try:
-            db = SessionLocal()
-            services = db.query(models.Service).all()
-            headers = {"Content-Type": "application/json", "Accept": "application/json"}
-            http_client = AsyncHTTPClient(
-                force_instance=True, defaults=dict(validate_cert=False)
-            )
-            for service in services:
-                body = decrypt(service.body)
-                tunnel_url = body.get("env", {}).get("JUPYTERHUB_SETUPTUNNEL_URL", "")
-                api_token = body.get("env", {}).get("JUPYTERHUB_API_TOKEN", "")
-                start_response = decrypt(service.start_response)
-
-                if tunnel_url and api_token:
-                    headers["Authorization"] = f"token {api_token}"
-                    req = HTTPRequest(
-                        url=tunnel_url,
-                        method="POST",
-                        headers=headers,
-                        body=start_response,
+    try:
+        db = SessionLocal()
+        services = db.query(models.Service).all()
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        http_client = AsyncHTTPClient(
+            force_instance=True, defaults=dict(validate_cert=False)
+        )
+        for service in services:
+            try:
+                if callable(wrapper.ssh_recreate_at_start):
+                    ssh_recreate_at_start = wrapper.ssh_recreate_at_start(
+                        wrapper, service.jupyterhub_username
                     )
-                    try:
-                        await http_client.fetch(req)
-                        log.info(f"Tunnel restarted for {service.name}")
-                    except:
-                        log.exception(
-                            f"Could not restart tunnel during startup for {service.name}"
+                    if inspect.isawaitable(ssh_recreate_at_start):
+                        ssh_recreate_at_start = await ssh_recreate_at_start
+                else:
+                    ssh_recreate_at_start = wrapper.ssh_recreate_at_start
+                if ssh_recreate_at_start:
+                    body = decrypt(service.body)
+                    tunnel_url = body.get("env", {}).get(
+                        "JUPYTERHUB_SETUPTUNNEL_URL", ""
+                    )
+                    api_token = body.get("env", {}).get("JUPYTERHUB_API_TOKEN", "")
+                    start_response = decrypt(service.start_response)
+
+                    if tunnel_url and api_token:
+                        headers["Authorization"] = f"token {api_token}"
+                        req = HTTPRequest(
+                            url=tunnel_url,
+                            method="POST",
+                            headers=headers,
+                            body=start_response,
                         )
-        finally:
-            db.close()
-    else:
-        log.info("Do not recreate ssh tunnels during start up")
+                        try:
+                            await http_client.fetch(req)
+                            log.info(f"Tunnel restarted for {service.name}")
+                        except:
+                            log.exception(
+                                f"Could not restart tunnel during startup for {service.name}"
+                            )
+            except:
+                log.exception(f"Could not restart tunnel for {service.name}")
+    finally:
+        db.close()
 
 
 # @app.on_event("shutdown")

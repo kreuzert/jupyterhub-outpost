@@ -96,15 +96,21 @@ class JupyterHubOutpost(Application):
     allow_override = Any(
         default_value=None,
         help="""
-        An optional hook function that you can implement to modify the
-        response of the start process. 
+        An optional hook function that you can implement to decide if
+        the Spawner configuration can be overriden.
         
-        The result of this function will be sent to JupyterHub in the Location
-        header.
+        The parameter for this function will be the credential username
+        and the used `misc` (from JupyterHub.OutpostSpawner.custom_misc)
+        configuration in this request.
         
-        This maybe a coroutine.
+        The result of this function has to be a boolean.
+        True: if it's ok to override the given values
+        False: if it's not ok to override.
+        
+        This maybe a coroutine. 
 
         Example::
+        
             async def allow_override(jupyterhub_credential, misc):
                 if jupyterhub_credential == "jupyterhub":
                     return True
@@ -127,6 +133,7 @@ class JupyterHubOutpost(Application):
         This maybe a coroutine.
 
         Example::
+        
             async def my_sanitize_start_response(spawner, start_response):
                 return f"{start_response[0]}:{start_response[1]}"
 
@@ -140,10 +147,11 @@ class JupyterHubOutpost(Application):
         default_value={"validate_cert": False, "request_timeout": 10},
         help="""
         Allows you to add additional keywords to HTTPRequest Object.
-        Examples:
-          ca_certs,
-          validate_cert,
-          request_timeout
+        Example::
+        
+            ca_certs,
+            validate_cert,
+            request_timeout
         """,
     ).tag(config=True)
 
@@ -341,6 +349,16 @@ class JupyterHubOutpost(Application):
         set this to false.
         
         This maybe a coroutine.
+        
+        Example::  
+        
+            async def restart_tunnels(wrapper, jupyterhub_credential):
+                if jupyterhub_credential == "local_jupyterhub":
+                    return False
+                return True
+
+            c.JupyterHubOutpost.ssh_recreate_at_start = restart_tunnels
+            # c.JupyterHubOutpost.ssh_recreate_at_start = False
         """,
     ).tag(config=True)
 
@@ -394,9 +412,5 @@ class JupyterHubOutpost(Application):
         help="""The class to use for spawning single-user servers.
 
         Should be a subclass of :class:`jupyterhub.spawner.Spawner`.
-
-        .. versionchanged:: 1.0
-            spawners may be registered via entry points,
-            e.g. `c.JupyterHub.spawner_class = 'localprocess'`
         """,
     ).tag(config=True)
