@@ -62,8 +62,19 @@ def get_services_all(
     jupyterhub_name, db: Session = Depends(get_db)
 ) -> service_schema.Service:
     jupyterhub = get_or_create_jupyterhub(jupyterhub_name, db)
-    return (
+    services = (
         db.query(service_model.Service)
         .filter(service_model.Service.jupyterhub == jupyterhub)
         .all()
     )
+    service_list = [
+        {
+            "name": x.name,
+            "start_date": x.start_date,
+            "last_update": x.last_update,
+            "start_pending": x.start_pending,
+            "stop_pending": x.stop_pending,
+        }
+        for x in services
+    ]
+    return service_list

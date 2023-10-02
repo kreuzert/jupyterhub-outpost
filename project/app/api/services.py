@@ -35,7 +35,7 @@ log = logging.getLogger(logger_name)
 async def list_services(
     jupyterhub_name: Annotated[HTTPBasicCredentials, Depends(verify_user)],
     db: Session = Depends(get_db),
-) -> List[service_schema.Service]:
+) -> List[dict]:
     log.debug(f"List services for {jupyterhub_name}")
     return get_services_all(jupyterhub_name, db)
 
