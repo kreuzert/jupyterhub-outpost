@@ -72,7 +72,7 @@ kubectl -n outpost create secret generic --from-literal=usernames=jupyterhub --f
 
 ```{admonition} Note 
 If you want to connect multiple JupyterHubs to one JupyterHub Outpost, you have to create a secret with semicolon-separated usernames and passwords.  
-`kubectl create secret generics --from-literal=usernames=one,two,three --from-literal=passwords=pw1;pw2;pw3 outpost-users`
+`kubectl create secret generics --from-literal=usernames=one;two;three --from-literal=passwords=pw1;pw2;pw3 outpost-users`
 ```
 
 An encryption key is required, so data in the database can be encrypted.
