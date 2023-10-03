@@ -5,8 +5,6 @@
 
 JupyterHub Outpost can be used as an additional, external source to start and manage single-user servers. Like in JupyterHub itself, different Spawners can be configured at the Outpost. It's best used together with the [jupyterhub-outpostspawner](https://pypi.org/project/jupyterhub-outpostspawner/) configured at JupyterHub.
 
-[Overview of JupyterHub OutpostSpawner and JupyterHub Outpost](https://jupyterhub-outpostspawner.readthedocs.io/)
-
 ## Documentation
 
 Link to [documentation](https://jupyterhub-outpost.readthedocs.io).  
