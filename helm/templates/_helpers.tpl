@@ -60,3 +60,13 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+
+{{- /* Ingress */}}
+{{- define "jupyterhub-outpost.ingress.fullname" -}}
+    {{- if (include "jupyterhub-outpost.fullname" .) }}
+        {{- include "jupyterhub-outpost.fullname" . }}
+    {{- else -}}
+        jupyterhub
+    {{- end }}
+{{- end }}
