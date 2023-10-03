@@ -24,14 +24,19 @@ paths:
                   properties:
                     name:
                       type: string
+                      example: servicename
                     start_date:
-                      type: datetime
+                      type: string
+                      example: 2023-07-03T08:45:00.823499
                     last_update:
-                      type: datetime
+                      type: string
+                      example: 2023-07-03T09:00:00.823499
                     start_pending:
                       type: boolean
+                      example: false
                     stop_pending:
                       type: boolean
+                      example: false
   /services/{service_name}:
     get:
       summary: Get status of service
@@ -52,6 +57,7 @@ paths:
                 properties:
                   status:
                     type: string
+                    example: None
     post:
       summary: Start service
       description: |
@@ -156,3 +162,4 @@ paths:
                 properties:
                   ping:
                     type: string
+                    example: pong
