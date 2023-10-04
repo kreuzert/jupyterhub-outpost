@@ -28,7 +28,7 @@ spec:
           {{- end }}
       {{- if $host }}
       host: {{ $host | quote }}
-      {{- end }
+      {{- end }}
     {{- end }}
   {{- with .Values.ingress.tls }}
   tls:
