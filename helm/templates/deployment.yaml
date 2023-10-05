@@ -40,10 +40,7 @@ spec:
           {{- if .Values.extraPythonPackages }}
           command: ["sh", "-c", "--"]
           args:
-            {{- range .Values.extraPythonPackages }}
-            - "su -c 'pip install --user {{ . }}' jhuboutpost"
-            {{- end }}
-            - "/src/entrypoint.sh"
+            - "su -c 'pip install --user{{ range .Values.extraPythonPackages }} {{ . }}{{ end }}' jhuboutpost && /src/entrypoint.sh"
           {{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
