@@ -41,7 +41,7 @@ spec:
           command: ["sh", "-c", "--"]
           args:
             {{- range .Values.extraPythonPackages }}
-            - "pip install {{- . -}}"
+            - "pip install {{ . }}"
             {{- end }}
             - "/src/entrypoint.sh"
           {{- end }}
