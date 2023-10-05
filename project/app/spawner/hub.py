@@ -25,10 +25,15 @@ class OutpostJupyterHub:
 class OutpostUser:
     url = ""
     id = -1
+    auth_state = {}
 
-    def __init__(self, orig_body, *args, **kwargs):
+    def __init__(self, orig_body, auth_state, *args, **kwargs):
         self.name = orig_body.get("env", {}).get("JUPYTERHUB_USER", "")
         self.id = int(orig_body.get("env", {}).get("JUPYTERHUB_USER_ID", "-1"))
+        self.auth_state = auth_state
+
+    async def get_auth_state(self):
+        return self.auth_state
 
 
 class OutpostSpawner:

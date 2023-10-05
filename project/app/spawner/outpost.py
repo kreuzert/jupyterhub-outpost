@@ -84,12 +84,16 @@ class JupyterHubOutpost(Application):
                     )
             del self.spawners[f"{jupyterhub_name}-{service_name}"]
 
-    async def get_spawner(self, jupyterhub_name, service_name, orig_body):
+    async def get_spawner(
+        self, jupyterhub_name, service_name, orig_body, auth_state={}
+    ):
         if f"{jupyterhub_name}-{service_name}" not in self.spawners:
             self.log.debug(
                 f"Create Spawner object {service_name} for {jupyterhub_name}"
             )
-            spawner = await self._new_spawner(jupyterhub_name, service_name, orig_body)
+            spawner = await self._new_spawner(
+                jupyterhub_name, service_name, orig_body, auth_state
+            )
             self.spawners[f"{jupyterhub_name}-{service_name}"] = spawner
         return self.spawners[f"{jupyterhub_name}-{service_name}"]
 
@@ -163,7 +167,9 @@ class JupyterHubOutpost(Application):
         return request_kwargs
 
     # Create a DummySpawner object.
-    async def _new_spawner(wrapper, jupyterhub_name, service_name, orig_body):
+    async def _new_spawner(
+        wrapper, jupyterhub_name, service_name, orig_body, auth_state
+    ):
         # self.config.get('spawner_class', LocalProcessSpawner).get()
         # spawner_class = self.config.get("JupyterHubOutpost", {}).get("spawner_class", LocalProcessSpawner)
         class DummySpawner(
@@ -313,7 +319,10 @@ class JupyterHubOutpost(Application):
         )
         config = wrapper.config.get(spawner_class_name, {})
         config.update(
-            {"hub": OutpostJupyterHub(orig_body).hub, "user": OutpostUser(orig_body)}
+            {
+                "hub": OutpostJupyterHub(orig_body).hub,
+                "user": OutpostUser(orig_body, auth_state),
+            }
         )
         for key, value in orig_body.get("misc", {}).items():
             wrapper.log.debug(

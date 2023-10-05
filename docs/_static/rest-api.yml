@@ -47,6 +47,13 @@ paths:
           required: true
           schema:
             type: string
+        - name: auth-state-key
+          in: header
+          schema:
+            type: string
+          required: false
+          description: If parts of user.auth_state are required to get service status, one can send them in Headers.
+          example: value
       responses:
         200:
           description: List of services for used credentials
@@ -69,6 +76,13 @@ paths:
           required: true
           schema:
             type: string
+        - name: auth-state-key
+          in: header
+          schema:
+            type: string
+          required: false
+          description: If parts of user.auth_state are required to start service, one can send them in Headers.
+          example: value
       requestBody:
         description: |
           Information used to define single-user server.
@@ -145,6 +159,13 @@ paths:
           required: true
           schema:
             type: string
+        - name: auth-state-key
+          in: header
+          schema:
+            type: string
+          required: false
+          description: If parts of user.auth_state are required to stop service, one can send them in Headers.
+          example: value
       responses:
         200:
           description: Service deleted

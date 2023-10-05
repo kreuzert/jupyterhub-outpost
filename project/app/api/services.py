@@ -11,6 +11,7 @@ from database.utils import get_service
 from database.utils import get_services_all
 from fastapi import APIRouter
 from fastapi import Depends
+from fastapi import Request
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasicCredentials
 from spawner import get_spawner
@@ -30,6 +31,14 @@ logger_name = os.environ.get("LOGGER_NAME", "JupyterHubOutpost")
 log = logging.getLogger(logger_name)
 
 
+def get_auth_state(headers):
+    ret = {}
+    for key, value in headers.items():
+        if key.startswith("auth-state-"):
+            ret[key[len("auth-state-") :]] = value
+    return ret
+
+
 @router.get("/services/")
 @catch_exception
 async def list_services(
@@ -45,11 +54,17 @@ async def list_services(
 async def get_services(
     service_name: str,
     jupyterhub_name: Annotated[HTTPBasicCredentials, Depends(verify_user)],
+    request: Request,
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     log.debug(f"Get service {service_name} for {jupyterhub_name}")
     service = get_service(jupyterhub_name, service_name, db)
-    spawner = await get_spawner(jupyterhub_name, service_name, decrypt(service.body))
+    spawner = await get_spawner(
+        jupyterhub_name,
+        service_name,
+        decrypt(service.body),
+        get_auth_state(request.headers),
+    )
     ret = await spawner._outpostspawner_db_poll(db)
     return JSONResponse(content={"status": ret}, status_code=200)
 
@@ -59,6 +74,7 @@ async def get_services(
 async def delete_service(
     service_name: str,
     jupyterhub_name: Annotated[HTTPBasicCredentials, Depends(verify_user)],
+    request: Request,
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     log.debug(f"Delete service {service_name} for {jupyterhub_name}")
@@ -66,7 +82,12 @@ async def delete_service(
     service.stop_pending = True
     db.add(service)
     db.commit()
-    spawner = await get_spawner(jupyterhub_name, service_name, decrypt(service.body))
+    spawner = await get_spawner(
+        jupyterhub_name,
+        service_name,
+        decrypt(service.body),
+        get_auth_state(request.headers),
+    )
     await spawner._outpostspawner_db_stop(db)
     remove_spawner(jupyterhub_name, service_name)
     return JSONResponse(content={}, status_code=200)
@@ -77,6 +98,7 @@ async def delete_service(
 async def add_service(
     service: service_schema.Service,
     jupyterhub_name: Annotated[HTTPBasicCredentials, Depends(verify_user)],
+    request: Request,
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     log.debug(f"Create service {service.name} for {jupyterhub_name}")
@@ -86,7 +108,12 @@ async def add_service(
     new_service = service_model.Service(**d)
     db.add(new_service)
     db.commit()
-    spawner = await get_spawner(jupyterhub_name, service.name, decrypt(service.body))
+    spawner = await get_spawner(
+        jupyterhub_name,
+        service.name,
+        decrypt(service.body),
+        get_auth_state(request.headers),
+    )
     ret = await spawner._outpostspawner_db_start(db)
     service = get_service(jupyterhub_name, service.name, db)
     service.start_pending = False

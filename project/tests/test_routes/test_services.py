@@ -16,6 +16,7 @@ headers_auth_user2 = {"Authorization": f"Basic {auth_user2_b64}"}
 
 headers_auth_wrong_pw = {"Authorization": f"Basic {auth_user_wrong_pw}"}
 
+auth_state_required = "./tests/test_routes/auth_state_required.py"
 simple_direct = "./tests/test_routes/simple_direct.py"
 simple_override = "./tests/test_routes/simple_override.py"
 simple_direct_sanitized = "./tests/test_routes/simple_direct_sanitized.py"
@@ -238,8 +239,29 @@ def test_override_allowed_419_error_msg(client, db_session):
 
 @pytest.mark.parametrize("spawner_config", [simple_override])
 def test_override_allowed_no_misc_always_allowed(client, db_session):
-    # Two different jupyterhub can start services with the same name
     service_name = "user-servername"
     service_data = {"name": service_name}
     response = client.post("/services", json=service_data, headers=headers_auth_user2)
     assert response.status_code == 200
+
+
+@pytest.mark.parametrize("spawner_config", [auth_state_required])
+def test_auth_state_in_start_poll_stop(client, db_session):
+    import copy
+
+    service_name = "user-servername"
+    service_data = {"name": service_name, "misc": {"cmd": "sleep", "args": "5"}}
+    headers = copy.deepcopy(headers_auth_user)
+    headers["Auth-State-access_token"] = "secret"
+    response = client.post("/services", json=service_data, headers=headers)
+    assert response.status_code == 200, response.text
+
+    response = client.get(f"/services/{service_name}", headers=headers)
+    assert response.status_code == 200, response.text
+    assert response.json().get("status", "") == None
+
+    response = client.delete(f"/services/{service_name}", headers=headers)
+    assert response.status_code == 200, response.text
+
+    response = client.get(f"/services/{service_name}", headers=headers)
+    assert response.status_code == 404, response.text

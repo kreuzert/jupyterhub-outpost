@@ -19,9 +19,11 @@ def remove_wrapper() -> None:
 
 
 async def get_spawner(
-    jupyterhub_name: str, service_name: str, orig_body: bytes
+    jupyterhub_name: str, service_name: str, orig_body: bytes, auth_state: dict = {}
 ) -> Spawner:
-    ret = await get_wrapper().get_spawner(jupyterhub_name, service_name, orig_body)
+    ret = await get_wrapper().get_spawner(
+        jupyterhub_name, service_name, orig_body, auth_state
+    )
     return ret
 
 
