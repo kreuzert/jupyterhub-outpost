@@ -17,15 +17,13 @@ spec:
     {{- range $host := .Values.ingress.hosts | default (list "") }}
     - http:
         paths:
-          {{- range .paths }}
-          - path: {{ .path }}
-            pathType: {{ .pathType }}
+          - path: /{{ $.Values.ingress.pathSuffix }}
+            pathType: {{ $.Values.ingress.pathType }}
             backend:
               service:
                 name: {{ include "jupyterhub-outpost.fullname" $ }}
                 port:
                   name: http
-          {{- end }}
       {{- if $host }}
       host: {{ $host | quote }}
       {{- end }}
