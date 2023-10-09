@@ -22,7 +22,7 @@ The JupyterHub Outpost service in combination with the OutpostSpawner enables a 
   
 ## Requirements  
   
-At least one JupyterHub running on a Kubernetes Cluster (recommended is the use of [Zero2JupyterHub](https://z2jh.jupyter.org/en/stable/)). It is not necessary that the JupyterHub Outpost service runs on Kubernetes.  
+At least one JupyterHub running on a Kubernetes Cluster (recommended is the use of [Zero2JupyterHub](https://z2jh.jupyter.org/en/stable/)). It is not necessary that the JupyterHub Outpost service runs on Kubernetes, but recommended.  
 The JupyterHub Outpost must fulfill the requirements of the configured Spawner class. 
 **TODO What are the requirements? Probably individual depending on spawner, but do we have any examples?**
 
