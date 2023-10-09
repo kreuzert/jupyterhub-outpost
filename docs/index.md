@@ -2,28 +2,29 @@
 
 # JupyterHub Outpost
 
-The JupyterHub Outpost service in combination with the [OutpostSpawner](https://github.com/kreuzert/jupyterhub-outpostspawner) enables JupyterHub to spawn single-user notebook servers on multiple remote resources.  
+The JupyterHub Outpost service in combination with the [OutpostSpawner](https://github.com/kreuzert/jupyterhub-outpostspawner) enables JupyterHub to spawn single-user notebook servers on heterogenous remote resources.  
 
 ## Overview  
   
-The JupyterHub community created many useful [JupyterHub Spawner](https://jupyterhub.readthedocs.io/en/latest/reference/spawners.html#examples) over the past years, to allow JupyterHub to use the specific resources of different systems. For most of these Spawners JupyterHub has to run at the system itself. The JupyterHub Outpost service allows the use of these Spawners on remote systems, if JupyterHub uses the [OutpostSpawner](https://github.com/kreuzert/jupyterhub-outpostspawner/)..  
+The JupyterHub community has created many useful [JupyterHub Spawners](https://jupyterhub.readthedocs.io/en/latest/reference/spawners.html#examples) over the past years, allowing JupyterHub to use the specific features of different systems. For most of these Spawners, JupyterHub has to run locally on the system itself. The JupyterHub Outpost service allows the use of these Spawners on remote systems with no modifications to their code, provided that JupyterHub uses the [OutpostSpawner](https://github.com/kreuzert/jupyterhub-outpostspawner/) as mediator.  
 
-Other Spawners like [SSHSpawner](https://github.com/NERSC/sshspawner) can spawn single-user servers on remote systems, but are not able to use system-specific features like [KubeSpawner](https://github.com/jupyterhub/kubespawner) or [BatchSpawner](https://github.com/jupyterhub/batchspawner).  
+While Spawners like the [SSHSpawner](https://github.com/NERSC/sshspawner) can already spawn single-user servers on remote systems, they are not able to utilize system-specific features like [KubeSpawner](https://github.com/jupyterhub/kubespawner) or [BatchSpawner](https://github.com/jupyterhub/batchspawner). 
   
-The JupyterHub Outpost service in combination with the OutpostSpawner enables a single JupyterHub to offer multiple remote systems of different types. 
+The JupyterHub Outpost service in combination with the OutpostSpawner enables a single JupyterHub to spawn single-user notebook servers using a variety of Spawners on a variety of remote systems.
   
-- Use one JupyterHub to offer single-user servers on multiple systems.
-- Each system may use a different JupyterHub Spawner.
-- Integrated SSH port forwarding solution to reach remote single-user server.
-- supports the JupyterHub `internal_ssl` feature.
-- shows events gathered by the remote Spawner to the user.
+- Use one JupyterHub to offer single-user servers on multiple systems of potentially different types.
+- Each (remote) system may use a different JupyterHub Spawner.
+- Forward spawn events gathered by the remote Spawner to the user.
 - Users can override the configuration of the remote Spawner at runtime (e.g. to select a different Docker Image).
-- One JupyterHub Outpost can be connected to multiple JupyterHubs, without interfering with each other.
+- Integrated SSH port forwarding solution to reach otherwise isolated remote single-user servers.
+- Supports the JupyterHub `internal_ssl` feature.
+- One JupyterHub Outpost can be connected to multiple JupyterHubs without the Hubs interfering with each other.
   
 ## Requirements  
   
-JupyterHub must run on a Kubernetes Cluster (recommended is the use of Zero2JupyterHub).  
+At least one JupyterHub running on a Kubernetes Cluster (recommended is the use of [Zero2JupyterHub](https://z2jh.jupyter.org/en/stable/)). It is not necessary that the JupyterHub Outpost service runs on Kubernetes.  
 The JupyterHub Outpost must fulfill the requirements of the configured Spawner class. 
+**TODO What are the requirements? Probably individual depending on spawner, but do we have any examples?**
 
 
 ## License
