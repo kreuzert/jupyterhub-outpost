@@ -1,12 +1,14 @@
 # Architecture
 
-## Default
-
-**TODO should we add another example of Outpost and Hub running on the same K8s Cluster? The installation documentation mentions such a setup, but we have no graphics for it**
+## Default setup with remote system
 
 This is the default architecture designed to start a single-user notebook server. It uses a JupyterHub configured with an OutpostSpawner and running on a Kubenernetes cluster as well as a JupyterHub Outpost configured with a remote Spawner and running on a remote system (here a remote Kubernetes cluster, but can be another kind of system). The packages between the user and the single-user server will be tunneled through the hub container on the JupyterHub Kubernetes cluster.
 
-<img alt="JupyterHub default architecture" src="_static/images/architecture-default.png" width="800" />
+```{eval-rst}
+.. image:: _static/images/architecture-default.png
+   :width: 400
+   :alt: JupyterHub default architecture
+```
 
 Cf. [here](https://jupyterhub.readthedocs.io/en/latest/reference/technical-overview.html#the-major-subsystems-hub-proxy-single-user-notebook-server)
 
@@ -20,25 +22,38 @@ The JupyterHub Outpost will use the configured JupyterHub Spawner to start the s
 JupyterHub needs the service address (usually a combination of `port` and `ip`) to create the SSH port forwarding. SSH port forwarding enables the user to reach the remote single-user notebook server, even when it is running in an otherwise isolated environment.
 
 ### 4. Port forwarding
-JupyterHub uses a random available port to forward traffic for this single-user server to the JupyterHub Outpost. It uses SSH multiplexing to reduce the number of connections. In this setup, the JupyterHub Outpost must be able to reach the notebook server's service address.  **TODO: correct? What if we want ot tunnel to the pod directly without going through the outpost service?**
+JupyterHub uses a random available local port (`random_port`) to forward traffic for this single-user server to the JupyterHub Outpost. It uses SSH multiplexing to reduce the number of connections. In this setup, the JupyterHub Outpost must be able to reach the notebook server's under its ip (`service_address`) and port (`single-user_port`).
 Simplified port forward command: `ssh -L 0.0.0.0:[random_port]:[service_address]:[single-user_port] jupyterhuboutpost@[outpost-ip]`.  
 
-It is also possible to define a customized port forward function (e.g. to outsource port-forwarding to an external pod). 
-
-**TO DO: Use same address and ip designations in step 3 and 4**
+It is also possible to define a customized port forward function (e.g. to outsource port-forwarding to an external pod, see [external tunneling](#external-tunneling)). Once could also tunnel directly to the system where the notebook server is running without going through a JupyterHub Outpost, see [delayed tunneling](#delayed-tunneling).
 
 ### 5. Create service
 At this step the JupyterHub OutpostSpawner will create a Kubernetes Service, allowing the Configurable HTTP Proxy to communicate with the single-user server via this Kubernetes service.  
 
 In the default configuration, the Hub pod is targeted by the Kubernetes service since it handles the SSH connections. All packages between the client and the single-user server will therefore be forwarded through the hub container. It is also possible to alter the Kubernetes service selector, or to define a customized service creation function (e.g. to outsource port-forwarding to an external pod).
 
+## Default setup with remote and local system
+
+This is the same architecture as described in the [previous section](#default-setup-with-remote-system) but with the addition of a local JupyterHub Outpost service running on the same Kubernetes cluster as JupyterHub. It simply serves to demonstrate that in the case of a local Outpost service, there is no need to enable ssh port-forwarding as the notebook servers will be directly reachable thanks to Kubernetes' internal DNS name resolution.  
+
+```{eval-rst}
+.. image:: _static/images/architecture-default-plus-local.png
+   :width: 400
+   :alt: JupyterHub delayed architecture
+```
+
+Steps A to C correspond to steps 1 to 3 in the [previous section](#default-setup-with-remote-system).
 ## External Tunneling
 
 In this scenario, an additional pod was created to manage the port forwarding. This means that the management of SSH tunnels to single-user notebook servers is delegated from the JupyterHub pod to the external pod forwarding pod.
 
 With this setup, single-user server are reachable even if JupyterHub itself is currently offline. Instead of tunneling through the Hub pod, packages between the client and the single-user server travel through the port forward pod. The Kubernetes service for the single-user server therefore targets the port forwarding pod and not the Hub pod.
 
-<img alt="JupyterHub external architecture" src="_static/images/architecture-external.png" width="800" />
+```{eval-rst}
+.. image:: _static/images/architecture-external.png
+   :width: 400
+   :alt: JupyterHub external architecture
+```
 
 Cf. [here](https://jupyterhub.readthedocs.io/en/latest/reference/technical-overview.html#the-major-subsystems-hub-proxy-single-user-notebook-server)
 
@@ -46,9 +61,12 @@ Cf. [here](https://jupyterhub.readthedocs.io/en/latest/reference/technical-overv
 
 This setup shows the start of a single-user server on an external system where the service address of the single-user server cannot be determined during the start process. This may for example be the case if you have configured a Spawner which spawns single-user server on remote Batch systems. The single-user server has to contact the [OutpostSpawner](https://jupyterhub-outpostspawner.readthedocs.io/en/latest/apiendpoints.html) itself, once its location is settled.
 
-The use of the additional port forward pod is optional and SSH tunnels to the single-user servers may be managed by the Hub pod itself. In any case, the remote system where the notebook server runs must be reachable.
-**TODO: is this paragraph correct?**
+The use of the additional port forward pod is optional and SSH tunnels to the single-user servers may be managed by the Hub pod itself. In any case, when one tunnels directly to the remote system where the notebook server runs, port 22 of the system (or whichever port is used for ssh) must be reachable for the pod which manages the tunnels.
 
-<img alt="JupyterHub delayed architecture" src="_static/images/architecture-delayed.png" width="800" />
+```{eval-rst}
+.. image:: _static/images/architecture-delayed.png
+   :width: 400
+   :alt: JupyterHub delayed architecture
+```
 
 Cf. [here](https://jupyterhub.readthedocs.io/en/latest/reference/technical-overview.html#the-major-subsystems-hub-proxy-single-user-notebook-server)

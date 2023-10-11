@@ -1,7 +1,7 @@
 # Application Configuration
 
-The JupyterHub Outpost configuration is nearly the same as the [JupyterHub Spawner configuration](https://jupyterhub.readthedocs.io/en/stable/reference/api/spawner.html).  **TODO is this what is meant? Or is it: The JupyterHub Outpost configuration is nearly the same as the JupyterHub Spawner it is configured with.**
-The easiest way is configure the Outpost is in the `outpostConfig` key in the `values.yaml` file. **TODO is there another way?**
+The JupyterHub Outpost uses a configuration file `outpost_config.py` similar to `jupyterhub_config.py` of JupyterHub. The Spawner configuration for the Outpost is therefore similar to the [Spawner configuration in JupyterHub](https://jupyterhub.readthedocs.io/en/stable/reference/api/spawner.html). 
+The easiest way is configure the Outpost's configuration file is via the `outpostConfig` key in the helm chart's `values.yaml` file.
 
 ## Persistent database
 
@@ -65,7 +65,7 @@ c.JupyterHubOutpost.log_datafmt = ...
 c.JupyterHubOutpost.log_format = ...
 ```
 
-If more customization is required, one can do this directly in the configuration itself.  **TODO which configuration? Under the outpostConfig key? Really unclear here**
+If more customization is required, one can do this directly in the `outpost_config.py` file itself (possible via the `outpostConfig` key of the helm chart).
 ```python
 class TornadoGeneralLoggingFilter(logging.Filter):
   def filter(self, record):
@@ -86,8 +86,9 @@ JupyterHub Outpost will use the return value of the `start` function of the conf
 
 The JupyterHub OutpostSpawner will take this information and create a ssh port-forwarding process with the option `-L 0.0.0.0:<local_jhub_port>:jupyter-<id>-<user_id>:<port>`. Afterwards, JupyterHub will look for the newly created single-user server at `http://localhost:<local_jhub_port>`. If the response of the `start` function of the configured SpawnerClass in the JupyterHub Outpost service is not correct, OutpostSpawner and Outpost cannot work together properly. To ensure nearly all Spawners can be used anyway, you can override the response send to the OutpostSpawner.
 
-**TODO is this the outpostConfig in the values.yaml file again? We should specify where this code should go**
 ```python
+# In the `outpostConfig` key of your helm values.yaml file or your outpost_config.py file:
+
 # This may be a coroutine
 def sanitize_start_response(spawner, original_response):
   # ... determine the correct location for the new single-user server
@@ -104,6 +105,8 @@ If you don't know where your single-user server will be running at the end of th
 By default, JupyterHubs can overwrite the JupyterHub Outpost configuration with the OutpostSpawner's `custom_misc` function. As an administrator of the JupyterHub Outpost service, you can prevent this.  
 
 ```python
+# In the `outpostConfig` key of your helm values.yaml file or your outpost_config.py file:
+
 async def allow_override(jupyterhub_name, misc):
     if jupyterhub_name == "trustedhub":
         return True
@@ -121,7 +124,7 @@ The above example leads to the following behaviour:
 
 ```{admonition} Note
 If `custom_misc` in the POST request is empty, the `allow_override` function will not be called.  
-If `allow_override` returns False, the JupyterLab will not be started. An error message will be returned to the JupyterHub OutpostSpawner and shown to the user. **TODO will the user really see the error msg? Added it in mostly because it sounds good**
+If `allow_override` returns False, the JupyterLab will not be started. An error message will be returned to the JupyterHub OutpostSpawner and shown to the user.
 ```
 
 
@@ -131,6 +134,8 @@ If your JupyterHub Outpost is used as a ssh node in the JupyterHub OutpostSpawne
 By default tunnels will be recreated at JupyterHub Outpost restarts. You can disable this behaviour with the `ssh_recreate_at_start` key.  
 
 ```python
+# In the `outpostConfig` key of your helm values.yaml file or your outpost_config.py file:
+
 async def restart_tunnels(wrapper, jupyterhub_credential):
     if jupyterhub_credential == "local_jupyterhub":
         return False
