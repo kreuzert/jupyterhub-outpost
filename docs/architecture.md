@@ -7,6 +7,7 @@ This is the default architecture designed to start a single-user notebook server
 ```{eval-rst}
 .. image:: _static/images/architecture-default.png
    :width: 400
+   :align: center
    :alt: JupyterHub default architecture
 ```
 
@@ -39,6 +40,7 @@ This is the same architecture as described in the [previous section](#default-se
 ```{eval-rst}
 .. image:: _static/images/architecture-default-plus-local.png
    :width: 400
+   :align: center
    :alt: JupyterHub delayed architecture
 ```
 
@@ -52,6 +54,7 @@ With this setup, single-user server are reachable even if JupyterHub itself is c
 ```{eval-rst}
 .. image:: _static/images/architecture-external.png
    :width: 400
+   :align: center
    :alt: JupyterHub external architecture
 ```
 
@@ -66,6 +69,7 @@ The use of the additional port forward pod is optional and SSH tunnels to the si
 ```{eval-rst}
 .. image:: _static/images/architecture-delayed.png
    :width: 400
+   :align: center
    :alt: JupyterHub delayed architecture
 ```
 
