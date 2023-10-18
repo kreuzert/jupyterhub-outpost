@@ -54,7 +54,7 @@ spec:
             {{- if .Values.outpostConfig }}
             - name: OUTPOST_CONFIG_FILE
               value: "/mnt/outpost_config/outpost_config.py"
-            {{- elif .Values.outpostConfigPath }}
+            {{- else if .Values.outpostConfigPath }}
             - name: OUTPOST_CONFIG_FILE
               value: {{ .Values.outpostConfigPath }}
             {{- else }}
