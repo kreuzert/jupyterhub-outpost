@@ -54,6 +54,9 @@ spec:
             {{- if .Values.outpostConfig }}
             - name: OUTPOST_CONFIG_FILE
               value: "/mnt/outpost_config/outpost_config.py"
+            {{- elif .Values.outpostConfigPath }}
+            - name: OUTPOST_CONFIG_FILE
+              value: {{ .Values.outpostConfigPath }}
             {{- else }}
             - name: OUTPOST_CONFIG_FILE
               value: "/home/jupyterhuboutpost/app/minimal_config.py"
@@ -81,8 +84,6 @@ spec:
                 name: {{ .Values.outpostUsers }}
             {{- end }}
           {{- end }}
-            
-
           volumeMounts:
             - mountPath: /home/jupyterhuboutpost/.ssh/authorized_keys
               name: authorized-keys

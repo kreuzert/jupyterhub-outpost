@@ -87,6 +87,7 @@ cryptSecret: ""
 sshPublicKeys: []
 outpostUsers: ""
 outpostConfig: ""
+outpostConfigPath: ""
 extraPythonPackages: []
 
 # Extra Envs / Secrets / Containers
