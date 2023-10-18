@@ -38,10 +38,12 @@ class OutpostUser:
 
 class OutpostSpawner:
     env = {}
+    jupyterhub_name = ""
 
     def __init__(self, jupyterhub_name, service_name, orig_body, **config):
         self.user = config["user"]
         self.hub = config["hub"]
+        self.jupyterhub_name = jupyterhub_name
         self.name = service_name
         for key, value in orig_body.get("env", {}).items():
             self.env[key] = str(value)
