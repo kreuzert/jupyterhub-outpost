@@ -47,9 +47,11 @@ spec:
             - name: http
               containerPort: 8080
               protocol: TCP
+            {{- if .Values.servicessh.enabled }}
             - name: ssh
               containerPort: {{ .Values.servicessh.port }}
               protocol: TCP
+            {{- end }}
           env:
             {{- if .Values.outpostConfig }}
             - name: OUTPOST_CONFIG_FILE
