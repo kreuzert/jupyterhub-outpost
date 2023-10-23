@@ -41,9 +41,9 @@ RUN apt update && \
 RUN echo ${USERNAME}:$(uuidgen) | chpasswd
 
 COPY project/app ${APP_HOME}
-COPY devel/entrypoint.sh ${APP_HOME}/entrypoint.sh
+COPY devel/entrypoint.sh /src/entrypoint.sh
 RUN chown -R ${USERNAME}:users ${HOME} && \
     chmod 755 ${HOME}/.ssh && \
-    chmod 755 ${APP_HOME}/entrypoint.sh
+    chmod 755 /src/entrypoint.sh
 
-ENTRYPOINT ["/home/jhuboutpost/app/entrypoint.sh"]
+ENTRYPOINT ["/src/entrypoint.sh"]
