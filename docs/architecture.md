@@ -24,7 +24,7 @@ JupyterHub needs the service address (usually a combination of `port` and `ip`) 
 
 ### 4. Port forwarding
 JupyterHub uses a random available local port (`random_port`) to forward traffic for this single-user server to the JupyterHub Outpost. It uses SSH multiplexing to reduce the number of connections. In this setup, the JupyterHub Outpost must be able to reach the notebook server's under its ip (`service_address`) and port (`single-user_port`).
-Simplified port forward command: `ssh -L 0.0.0.0:[random_port]:[service_address]:[single-user_port] jupyterhuboutpost@[outpost-ip]`.  
+Simplified port forward command: `ssh -L 0.0.0.0:[random_port]:[service_address]:[single-user_port] jhuboutpost@[outpost-ip]`.  
 
 It is also possible to define a customized port forward function (e.g. to outsource port-forwarding to an external pod, see [external tunneling](#external-tunneling)). Once could also tunnel directly to the system where the notebook server is running without going through a JupyterHub Outpost, see [delayed tunneling](#delayed-tunneling).
 

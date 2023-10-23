@@ -1,6 +1,6 @@
 #!/bin/bash
 
-USERNAME=jupyterhuboutpost
+USERNAME=jhuboutpost
 
 # Start sshd service
 export SSHD_LOG_PATH=${SSHD_LOG_PATH:-/home/${USERNAME}/sshd.log}

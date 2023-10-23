@@ -2,7 +2,7 @@ FROM ubuntu:jammy-20230624
 
 ENV DEBIAN_FRONTEND noninteractive
 
-ENV USERNAME=jupyterhuboutpost
+ENV USERNAME=jhuboutpost
 ENV PYTHONUNBUFFERED=1
 ENV HOME=/home/${USERNAME}
 ENV APP_HOME=/home/${USERNAME}/app
@@ -46,4 +46,4 @@ RUN chown -R ${USERNAME}:users ${HOME} && \
     chmod 755 ${HOME}/.ssh && \
     chmod 755 ${APP_HOME}/entrypoint.sh
 
-ENTRYPOINT ["/home/jupyterhuboutpost/app/entrypoint.sh"]
+ENTRYPOINT ["/home/jhuboutpost/app/entrypoint.sh"]
