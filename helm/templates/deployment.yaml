@@ -63,7 +63,7 @@ spec:
               value: {{ .Values.outpostConfigPath }}
             {{- else }}
             - name: OUTPOST_CONFIG_FILE
-              value: "/home/jupyterhuboutpost/app/minimal_config.py"
+              value: "/home/jhuboutpost/app/minimal_config.py"
             {{- end }}
             - name: OUTPOST_CRYPT_KEY
               valueFrom:
@@ -89,13 +89,13 @@ spec:
             {{- end }}
           {{- end }}
           volumeMounts:
-            - mountPath: /home/jupyterhuboutpost/.ssh/authorized_keys
+            - mountPath: /home/jhuboutpost/.ssh/authorized_keys
               name: authorized-keys
             {{- if .Values.outpostConfig }}
             - mountPath: /mnt/outpost_config
               name: outpost-config
             {{- end }}
-            - mountPath: /home/jupyterhuboutpost/.ssh
+            - mountPath: /home/jhuboutpost/.ssh
               name: authorized-keys
             {{- with .Values.extraVolumeMounts }}
             {{- . | toYaml | nindent 12 }}
