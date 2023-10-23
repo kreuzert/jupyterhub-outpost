@@ -259,11 +259,13 @@ class JupyterHubOutpost(Application):
                     self.cert_paths = cert_paths
 
                 ret = await maybe_future(self.start())
+                if inspect.isawaitable(ret):
+                    ret = await ret
                 if wrapper.sanitize_start_response:
                     ret = wrapper.sanitize_start_response(self, ret)
                     if inspect.isawaitable(ret):
                         ret = await ret
-                elif type(ret) == tuple and len(ret) == 2:
+                if type(ret) == tuple and len(ret) == 2:
                     ret = f"{ret[0]}:{ret[1]}"
 
                 service = get_service(jupyterhub_name, self.name, db)
@@ -312,6 +314,9 @@ class JupyterHubOutpost(Application):
                     f"{jupyterhub_name} is not allowed to override the configuration. Used keys: {list(orig_body.get('misc', {}).keys())}"
                 )
 
+        # Update config file for each Spawner creation
+        config_file = os.environ.get("OUTPOST_CONFIG_FILE", "spawner_config.py")
+        wrapper.load_config_file(config_file)
         spawner_class_name = (
             wrapper.config.get("JupyterHubOutpost", {})
             .get("spawner_class", LocalProcessSpawner)
@@ -351,7 +356,7 @@ class JupyterHubOutpost(Application):
 
     ssh_recreate_at_start = Union(
         [Callable(), Bool()],
-        default_value=True,
+        default_value=False,
         help="""
         Whether ssh tunnels should be recreated at Outpost start or not.
         If you have outsourced the port forwarding to an extra system, you can
