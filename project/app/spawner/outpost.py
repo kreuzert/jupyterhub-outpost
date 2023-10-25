@@ -100,7 +100,7 @@ class JupyterHubOutpost(Application):
     allow_override = Any(
         default_value=None,
         help="""
-        An optional hook function that you can implement to decide if
+        An optional hook function you can implement to decide if
         the Spawner configuration can be overriden.
         
         The parameter for this function will be the credential username
@@ -111,7 +111,7 @@ class JupyterHubOutpost(Application):
         True: if it's ok to override the given values
         False: if it's not ok to override.
         
-        This maybe a coroutine. 
+        This may be a coroutine.
 
         Example::
         
@@ -128,13 +128,13 @@ class JupyterHubOutpost(Application):
     sanitize_start_response = Any(
         default_value=None,
         help="""
-        An optional hook function that you can implement to modify the
+        An optional hook function you can implement to modify the
         response of the start process. 
         
         The result of this function will be sent to JupyterHub in the Location
         header.
         
-        This maybe a coroutine.
+        This may be a coroutine.
 
         Example::
         
@@ -183,6 +183,7 @@ class JupyterHubOutpost(Application):
                     "spawner_class", LocalProcessSpawner
                 )
             )
+            spawn_future = None
             name = service_name
             log = wrapper.log
             http_client = Any
@@ -214,11 +215,11 @@ class JupyterHubOutpost(Application):
                         f"Could not send event to {event_url} for {self._log_name}: {event.get('html_message', event.get('message', ''))}"
                     )
 
-            async def _outpostspawner_forward_events(self, future):
+            async def _outpostspawner_forward_events(self):
                 # retrieve progress events from the Spawner
                 self._spawn_pending = True
                 async with aclosing(
-                    iterate_until(future, self._generate_progress())
+                    iterate_until(self._spawn_future, self._generate_progress())
                 ) as events:
                     try:
                         async for event in events:
@@ -229,23 +230,24 @@ class JupyterHubOutpost(Application):
                     except asyncio.CancelledError:
                         pass
 
-                await asyncio.wait([future])
-                future = None
+                await asyncio.wait([self._spawn_future])
                 self._spawn_pending = False
 
             async def _outpostspawner_db_start(self, db):
-                _outpostspawner_start_future = asyncio.ensure_future(
+                self.log.info(f"{self._log_name} - Start service")
+                self._spawn_future = asyncio.ensure_future(
                     self._outpostspawner_db_start_call(db)
                 )
+
+                forward_future = None
                 if self.env.get("JUPYTERHUB_EVENTS_URL", ""):
-                    asyncio.ensure_future(
-                        self._outpostspawner_forward_events(
-                            _outpostspawner_start_future
-                        )
-                    )
-                await asyncio.wait([_outpostspawner_start_future])
+                    forward_future = self._outpostspawner_forward_events()
+
+                await asyncio.wait([self._spawn_future])
+                if forward_future:
+                    await forward_future
                 try:
-                    return _outpostspawner_start_future.result()
+                    return self._spawn_future.result()
                 except asyncio.CancelledError:
                     raise Exception(f"Start of {self._log_name} was cancelled.")
 
@@ -258,16 +260,19 @@ class JupyterHubOutpost(Application):
                         cert_paths = await cert_paths
                     self.cert_paths = cert_paths
 
-                ret = await maybe_future(self.start())
-                if inspect.isawaitable(ret):
-                    ret = await ret
-                if wrapper.sanitize_start_response:
-                    ret = wrapper.sanitize_start_response(self, ret)
+                try:
+                    ret = await maybe_future(self.start())
                     if inspect.isawaitable(ret):
                         ret = await ret
-                if type(ret) == tuple and len(ret) == 2:
-                    ret = f"{ret[0]}:{ret[1]}"
-
+                    if wrapper.sanitize_start_response:
+                        ret = wrapper.sanitize_start_response(self, ret)
+                        if inspect.isawaitable(ret):
+                            ret = await ret
+                    if type(ret) == tuple and len(ret) == 2:
+                        ret = f"{ret[0]}:{ret[1]}"
+                except:
+                    self.log.exception(f"{self._log_name} - Start failed")
+                    raise
                 service = get_service(jupyterhub_name, self.name, db)
                 service.state = encrypt(self.get_state())
                 service.start_response = encrypt({"service": ret})
@@ -276,6 +281,7 @@ class JupyterHubOutpost(Application):
 
             async def _outpostspawner_db_poll(self, db):
                 # Update from db
+                self.log.debug(f"{self._log_name} - Poll service")
                 service = get_service(jupyterhub_name, self.name, db)
                 self.load_state(decrypt(service.state))
                 ret = self.poll()
@@ -286,6 +292,7 @@ class JupyterHubOutpost(Application):
                 return ret
 
             async def _outpostspawner_db_stop(self, db, now=False):
+                self.log.info(f"{self._log_name} - Stop service")
                 _outpostspawner_stop_future = asyncio.ensure_future(
                     self._outpostspawner_db_stop_call(db, now)
                 )
@@ -296,10 +303,16 @@ class JupyterHubOutpost(Application):
                 # Update from db
                 service = get_service(jupyterhub_name, self.name, db)
                 self.load_state(decrypt(service.state))
-                ret = self.stop(now)
-                if inspect.isawaitable(ret):
-                    ret = await ret
-                self.run_post_stop_hook()
+                try:
+                    ret = self.stop(now)
+                    if inspect.isawaitable(ret):
+                        ret = await ret
+                except:
+                    self.log.exception(f"{self._log_name} - Stop failed")
+                try:
+                    self.run_post_stop_hook()
+                except:
+                    self.log.exception(f"{self._log_name} - Run post stop hook failed")
                 self.clear_state()
                 db.delete(service)
                 db.commit()
@@ -331,10 +344,13 @@ class JupyterHubOutpost(Application):
         )
         for key, value in orig_body.get("misc", {}).items():
             wrapper.log.debug(
-                f"Override configuration via misc for {service_name}: {key} - {value}"
+                f"{config['user'].name}:{service_name} - Override configuration via misc for {service_name}: {key} - {value}"
             )
             config[key] = value
 
+        wrapper.log.info(
+            f"{config['user'].name}:{service_name} - Create Spawner ( {spawner_class_name} ) object for jupyterhub {jupyterhub_name}"
+        )
         spawner = DummySpawner(jupyterhub_name, service_name, orig_body, **config)
         return spawner
 
@@ -362,7 +378,7 @@ class JupyterHubOutpost(Application):
         If you have outsourced the port forwarding to an extra system, you can
         set this to false.
         
-        This maybe a coroutine.
+        This may be a coroutine.
         
         Example::  
         

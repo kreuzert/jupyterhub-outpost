@@ -1,6 +1,8 @@
 import os
 import shutil
 
+from jupyterhub.utils import url_escape_path
+
 certs_dir = "/tmp/jupyterhub-certs"
 
 
@@ -26,6 +28,11 @@ class OutpostUser:
     url = ""
     id = -1
     auth_state = {}
+
+    @property
+    def escaped_name(self):
+        """My name, escaped for use in URLs, cookies, etc."""
+        return url_escape_path(self.name)
 
     def __init__(self, orig_body, auth_state, *args, **kwargs):
         self.name = orig_body.get("env", {}).get("JUPYTERHUB_USER", "")
