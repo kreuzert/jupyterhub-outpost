@@ -1,11 +1,15 @@
 import asyncio
+import copy
 import inspect
 import json
 import logging
 import os
+import socket
+import sys
 from datetime import datetime
 from pathlib import Path
 
+import yaml
 from async_generator import aclosing
 from database.schemas import decrypt
 from database.schemas import encrypt
@@ -31,6 +35,7 @@ from traitlets import List
 from traitlets import Union
 from traitlets.config import Application
 
+from . import logging_utils
 from .hub import OutpostJupyterHub
 from .hub import OutpostSpawner
 from .hub import OutpostUser
@@ -53,6 +58,9 @@ class JupyterHubOutpost(Application):
 
     # Contains all spawner objects.
     spawners = {}
+    logging_config_cache = {}
+    logging_config_last_update = 0
+    logging_config_file = os.environ.get("LOGGING_CONFIG_PATH")
 
     def remove_spawner(self, jupyterhub_name, service_name):
         self.log.debug(f"Remove spawner in memory {service_name} for {jupyterhub_name}")
@@ -234,6 +242,7 @@ class JupyterHubOutpost(Application):
                 self._spawn_pending = False
 
             async def _outpostspawner_db_start(self, db):
+                self.update_logging()
                 self.log.info(f"{self._log_name} - Start service")
                 self._spawn_future = asyncio.ensure_future(
                     self._outpostspawner_db_start_call(db)
@@ -281,6 +290,7 @@ class JupyterHubOutpost(Application):
 
             async def _outpostspawner_db_poll(self, db):
                 # Update from db
+                self.update_logging()
                 self.log.debug(f"{self._log_name} - Poll service")
                 service = get_service(jupyterhub_name, self.name, db)
                 self.load_state(decrypt(service.state))
@@ -292,6 +302,7 @@ class JupyterHubOutpost(Application):
                 return ret
 
             async def _outpostspawner_db_stop(self, db, now=False):
+                self.update_logging()
                 self.log.info(f"{self._log_name} - Stop service")
                 _outpostspawner_stop_future = asyncio.ensure_future(
                     self._outpostspawner_db_stop_call(db, now)
@@ -425,6 +436,97 @@ class JupyterHubOutpost(Application):
             logger.propagate = True
             logger.parent = self.log
             logger.setLevel(self.log.level)
+
+    def update_logging(self):
+        last_change = os.path.getmtime(self.logging_config_file)
+        if last_change > self.logging_config_last_update:
+            self.log.debug("Update logging config")
+            with open(self.logging_config_file, "r") as f:
+                ret = yaml.full_load(f)
+            self.logging_config_last_update = last_change
+            self.logging_config_cache = ret
+
+            if self.log.getLevelName(5) != "TRACE":
+                # First call
+                # Remove default StreamHandler
+                if len(self.log.handlers) > 0:
+                    self.log.removeHandler(self.log.handlers[0])
+
+                # In trace will be sensitive information like tokens
+                self.log.addLevelName(5, "TRACE")
+
+                def trace_func(self, message, *args, **kws):
+                    if self.isEnabledFor(5):
+                        # Yes, logger takes its '*args' as 'args'.
+                        self._log(5, message, args, **kws)
+
+                logging.Logger.trace = trace_func
+                self.log.setLevel(5)
+
+            logger_handlers = self.log.handlers
+            handler_names = [x.name for x in logger_handlers]
+
+            for handler_name, handler_config in self.logging_config.items():
+                if (
+                    handler_config.get("enabled", False)
+                    and handler_name in handler_names
+                ):
+                    # Handler was disabled, remove it
+                    self.log.debug(f"Logging handler remove ({handler_name}) ... ")
+                    self.log.handlers = [
+                        x for x in logger_handlers if x.name != handler_name
+                    ]
+                    self.log.debug(f"Logging handler remove ({handler_name}) ... done")
+                elif handler_config.get("enabled", False):
+                    # Recreate handlers which has changed their config
+                    configuration = copy.deepcopy(handler_config)
+
+                    # map some special values
+                    if handler_name == "stream":
+                        if configuration["stream"] == "ext://sys.stdout":
+                            configuration["stream"] = sys.stdout
+                        elif configuration["stream"] == "ext://sys.stderr":
+                            configuration["stream"] = sys.stderr
+                    elif handler_name == "syslog":
+                        if configuration["socktype"] == "ext://socket.SOCK_STREAM":
+                            configuration["socktype"] = socket.SOCK_STREAM
+                        elif configuration["socktype"] == "ext://socket.SOCK_DGRAM":
+                            configuration["socktype"] = socket.SOCK_DGRAM
+
+                    _ = configuration.pop("enabled")
+                    formatter_name = configuration.pop("formatter")
+                    level = logging_utils.get_level(configuration.pop("level"))
+                    none_keys = []
+                    for key, value in configuration.items():
+                        if value is None:
+                            none_keys.append(key)
+                    for x in none_keys:
+                        _ = configuration.pop(x)
+
+                    # Create handler, formatter, and add it
+                    handler = logging_utils.supported_handler_classes[handler_name](
+                        **configuration
+                    )
+                    formatter = logging_utils.supported_formatter_classes[
+                        formatter_name
+                    ](**logging_utils.supported_formatter_kwargs[formatter_name])
+                    handler.name = handler_name
+                    handler.setLevel(level)
+                    handler.setFormatter(formatter)
+                    if handler_name in handler_names:
+                        # Remove previously added handler
+                        self.log.handlers = [
+                            x for x in logger_handlers if x.name != handler_name
+                        ]
+                    self.log.addHandler(handler)
+
+                    if "filename" in configuration:
+                        # filename is already used in log.x(extra)
+                        configuration["file_name"] = configuration["filename"]
+                        del configuration["filename"]
+                    self.log.debug(
+                        f"Logging handler added ({handler_name})", extra=configuration
+                    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
