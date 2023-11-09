@@ -3,6 +3,7 @@ httpx==0.24.1
 jupyterhub==4.0.1
 jupyter-core==5.3.1
 jupyter-server==2.7.2
+jsonformatter=0.3.2
 passlib==1.7.4
 psutil==5.9.5
 psycopg2-binary==2.9.7
