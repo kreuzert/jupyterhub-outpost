@@ -242,7 +242,7 @@ class JupyterHubOutpost(Application):
                 self._spawn_pending = False
 
             async def _outpostspawner_db_start(self, db):
-                self.update_logging()
+                wrapper.update_logging()
                 self.log.info(f"{self._log_name} - Start service")
                 self._spawn_future = asyncio.ensure_future(
                     self._outpostspawner_db_start_call(db)
@@ -290,7 +290,7 @@ class JupyterHubOutpost(Application):
 
             async def _outpostspawner_db_poll(self, db):
                 # Update from db
-                self.update_logging()
+                wrapper.update_logging()
                 self.log.debug(f"{self._log_name} - Poll service")
                 service = get_service(jupyterhub_name, self.name, db)
                 self.load_state(decrypt(service.state))
@@ -302,7 +302,7 @@ class JupyterHubOutpost(Application):
                 return ret
 
             async def _outpostspawner_db_stop(self, db, now=False):
-                self.update_logging()
+                wrapper.update_logging()
                 self.log.info(f"{self._log_name} - Stop service")
                 _outpostspawner_stop_future = asyncio.ensure_future(
                     self._outpostspawner_db_stop_call(db, now)
@@ -438,7 +438,13 @@ class JupyterHubOutpost(Application):
             logger.setLevel(self.log.level)
 
     def update_logging(self):
-        last_change = os.path.getmtime(self.logging_config_file)
+        try:
+            last_change = os.path.getmtime(self.logging_config_file)
+        except:
+            self.log.exception(
+                f"Could not load logging config {self.logging_config_file}"
+            )
+            last_change = 0
         if last_change > self.logging_config_last_update:
             self.log.debug("Update logging config")
             with open(self.logging_config_file, "r") as f:
