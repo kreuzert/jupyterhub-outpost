@@ -452,7 +452,7 @@ class JupyterHubOutpost(Application):
             self.logging_config_last_update = last_change
             self.logging_config_cache = ret
 
-            if self.log.getLevelName(5) != "TRACE":
+            if logging.getLevelName(5) != "TRACE":
                 # First call
                 # Remove default StreamHandler
                 if len(self.log.handlers) > 0:
