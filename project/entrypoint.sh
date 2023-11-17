@@ -12,7 +12,9 @@ if [ "$SQL_TYPE" == "postgresql" ]; then
     echo "$(date) PostgreSQL started"
 fi
 
+export UVICORN_WORKERS=${UVICORN_WORKERS:-4}
+
 cd $HOME
 su ${USERNAME}
 
-uvicorn --app-dir app main:app --proxy-headers --host ${HOST:-0.0.0.0} --port ${PORT:-8080} ${@}
+uvicorn --app-dir app main:app --proxy-headers --workers ${UVICORN_WORKERS} --host ${HOST:-0.0.0.0} --port ${PORT:-8080} ${@}

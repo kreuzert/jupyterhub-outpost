@@ -124,6 +124,7 @@ async def add_service(
         service_.start_pending = False
         db.add(service_)
         db.commit()
+        return ret
 
     if request.headers.get("execution-type", "sync") == "async":
         task = asyncio.create_task(async_start())
