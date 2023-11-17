@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated
 from typing import List
 
@@ -29,6 +30,8 @@ import logging
 
 logger_name = os.environ.get("LOGGER_NAME", "JupyterHubOutpost")
 log = logging.getLogger(logger_name)
+
+background_tasks = set()
 
 
 def get_auth_state(headers):
@@ -108,15 +111,25 @@ async def add_service(
     new_service = service_model.Service(**d)
     db.add(new_service)
     db.commit()
-    spawner = await get_spawner(
-        jupyterhub_name,
-        service.name,
-        decrypt(service.body),
-        get_auth_state(request.headers),
-    )
-    ret = await spawner._outpostspawner_db_start(db)
-    service = get_service(jupyterhub_name, service.name, db)
-    service.start_pending = False
-    db.add(service)
-    db.commit()
-    return JSONResponse(content={"service": ret}, status_code=200)
+
+    async def async_start():
+        spawner = await get_spawner(
+            jupyterhub_name,
+            service.name,
+            decrypt(service.body),
+            get_auth_state(request.headers),
+        )
+        ret = await spawner._outpostspawner_db_start(db)
+        service_ = get_service(jupyterhub_name, service.name, db)
+        service_.start_pending = False
+        db.add(service_)
+        db.commit()
+
+    if request.headers.get("execution-type", "sync") == "async":
+        task = asyncio.create_task(async_start())
+        background_tasks.add(task)
+        task.add_done_callback(background_tasks.discard)
+        return JSONResponse(content={"service": ""}, status_code=202)
+    else:
+        ret = await async_start()
+        return JSONResponse(content={"service": ret}, status_code=200)
