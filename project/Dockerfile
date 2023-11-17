@@ -28,6 +28,7 @@ RUN apk add --virtual=build_dependencies build-base && \
 
 COPY ./project/app ${APP_HOME}
 COPY ./project/entrypoint.sh /src/entrypoint.sh
+COPY ./project/gunicorn_http.py ${APP_HOME}/gunicorn_http.py
 RUN chown -R ${USERNAME}:users ${HOME} && \
     chown -R ${USERNAME}:users /src && \
     chmod 755 ${HOME}/.ssh && \

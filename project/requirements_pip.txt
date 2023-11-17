@@ -1,4 +1,5 @@
 fastapi==0.97.0
+gunicorn==21.2.0
 jupyterhub==4.0.1
 jupyterhub-kubespawner==6.0.0
 jupyter-core==5.3.1

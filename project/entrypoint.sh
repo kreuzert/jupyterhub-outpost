@@ -12,9 +12,8 @@ if [ "$SQL_TYPE" == "postgresql" ]; then
     echo "$(date) PostgreSQL started"
 fi
 
-export UVICORN_WORKERS=${UVICORN_WORKERS:-4}
-
-cd $HOME
+cd ${HOME}/app
 su ${USERNAME}
 
-uvicorn --app-dir app main:app --proxy-headers --workers ${UVICORN_WORKERS} --host ${HOST:-0.0.0.0} --port ${PORT:-8080} ${@}
+/usr/local/bin/gunicorn -c gunicorn_http.py main:app
+# uvicorn --app-dir app main:app --proxy-headers --workers ${UVICORN_WORKERS} --host ${HOST:-0.0.0.0} --port ${PORT:-8080} ${@}
