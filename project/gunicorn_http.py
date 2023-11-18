@@ -77,7 +77,7 @@ workers = int(os.environ.get("GUNICORN_PROCESSES", 4))
 threads = int(os.environ.get("GUNICORN_THREADS", 25))
 worker_class = "uvicorn.workers.UvicornWorker"
 # worker_connections = 1000
-timeout = 30
+timeout = int(os.environ.get("GUNICORN_TIMEOUT", 30))
 keepalive = 2
 
 #

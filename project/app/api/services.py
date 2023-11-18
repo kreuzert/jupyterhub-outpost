@@ -113,6 +113,8 @@ async def add_service(
     db.commit()
 
     async def async_start():
+        # remove spawner from wrapper to ensure it's using the current config
+        remove_spawner(jupyterhub_name, service.name)
         spawner = await get_spawner(
             jupyterhub_name,
             service.name,

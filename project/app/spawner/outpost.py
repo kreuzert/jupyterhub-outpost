@@ -40,6 +40,9 @@ from .hub import OutpostJupyterHub
 from .hub import OutpostSpawner
 from .hub import OutpostUser
 
+logger_name = os.environ.get("LOGGER_NAME", "JupyterHubOutpost")
+outpost_log = logging.getLogger(logger_name)
+
 
 class JupyterHubOutpost(Application):
     """
@@ -63,8 +66,10 @@ class JupyterHubOutpost(Application):
     logging_config_file = os.environ.get("LOGGING_CONFIG_PATH")
 
     def remove_spawner(self, jupyterhub_name, service_name):
-        self.log.debug(f"Remove spawner in memory {service_name} for {jupyterhub_name}")
         if f"{jupyterhub_name}-{service_name}" in self.spawners.keys():
+            self.log.debug(
+                f"Remove spawner in memory {service_name} for {jupyterhub_name}"
+            )
             if self.spawners[f"{jupyterhub_name}-{service_name}"].cert_paths:
                 for path in self.spawners[
                     f"{jupyterhub_name}-{service_name}"
@@ -426,12 +431,12 @@ class JupyterHubOutpost(Application):
             max(self.log_level, logging.INFO)
         )
 
-        for log in (app_log, access_log, gen_log):
+        for log in (app_log, access_log, gen_log, outpost_log):
             # ensure all log statements identify the application they come from
             log.name = self.log.name
 
         # hook up tornado's and oauthlib's loggers to our own
-        for name in ("tornado", "oauthlib"):
+        for name in ("tornado", "oauthlib", logger_name):
             logger = logging.getLogger(name)
             logger.propagate = True
             logger.parent = self.log
@@ -469,70 +474,72 @@ class JupyterHubOutpost(Application):
                 logging.Logger.trace = trace_func
                 self.log.setLevel(5)
 
-            logger_handlers = self.log.handlers
-            handler_names = [x.name for x in logger_handlers]
+            for _log in [outpost_log, self.log]:
+                logger_handlers = _log.handlers
+                handler_names = [x.name for x in logger_handlers]
 
-            for handler_name, handler_config in self.logging_config.items():
-                if (
-                    handler_config.get("enabled", False)
-                    and handler_name in handler_names
-                ):
-                    # Handler was disabled, remove it
-                    self.log.debug(f"Logging handler remove ({handler_name}) ... ")
-                    self.log.handlers = [
-                        x for x in logger_handlers if x.name != handler_name
-                    ]
-                    self.log.debug(f"Logging handler remove ({handler_name}) ... done")
-                elif handler_config.get("enabled", False):
-                    # Recreate handlers which has changed their config
-                    configuration = copy.deepcopy(handler_config)
-
-                    # map some special values
-                    if handler_name == "stream":
-                        if configuration["stream"] == "ext://sys.stdout":
-                            configuration["stream"] = sys.stdout
-                        elif configuration["stream"] == "ext://sys.stderr":
-                            configuration["stream"] = sys.stderr
-                    elif handler_name == "syslog":
-                        if configuration["socktype"] == "ext://socket.SOCK_STREAM":
-                            configuration["socktype"] = socket.SOCK_STREAM
-                        elif configuration["socktype"] == "ext://socket.SOCK_DGRAM":
-                            configuration["socktype"] = socket.SOCK_DGRAM
-
-                    _ = configuration.pop("enabled")
-                    formatter_name = configuration.pop("formatter")
-                    level = logging_utils.get_level(configuration.pop("level"))
-                    none_keys = []
-                    for key, value in configuration.items():
-                        if value is None:
-                            none_keys.append(key)
-                    for x in none_keys:
-                        _ = configuration.pop(x)
-
-                    # Create handler, formatter, and add it
-                    handler = logging_utils.supported_handler_classes[handler_name](
-                        **configuration
-                    )
-                    formatter = logging_utils.supported_formatter_classes[
-                        formatter_name
-                    ](**logging_utils.supported_formatter_kwargs[formatter_name])
-                    handler.name = handler_name
-                    handler.setLevel(level)
-                    handler.setFormatter(formatter)
-                    if handler_name in handler_names:
-                        # Remove previously added handler
-                        self.log.handlers = [
+                for handler_name, handler_config in self.logging_config.items():
+                    if (
+                        handler_config.get("enabled", False)
+                        and handler_name in handler_names
+                    ):
+                        # Handler was disabled, remove it
+                        _log.debug(f"Logging handler remove ({handler_name}) ... ")
+                        _log.handlers = [
                             x for x in logger_handlers if x.name != handler_name
                         ]
-                    self.log.addHandler(handler)
+                        _log.debug(f"Logging handler remove ({handler_name}) ... done")
+                    elif handler_config.get("enabled", False):
+                        # Recreate handlers which has changed their config
+                        configuration = copy.deepcopy(handler_config)
 
-                    if "filename" in configuration:
-                        # filename is already used in log.x(extra)
-                        configuration["file_name"] = configuration["filename"]
-                        del configuration["filename"]
-                    self.log.debug(
-                        f"Logging handler added ({handler_name})", extra=configuration
-                    )
+                        # map some special values
+                        if handler_name == "stream":
+                            if configuration["stream"] == "ext://sys.stdout":
+                                configuration["stream"] = sys.stdout
+                            elif configuration["stream"] == "ext://sys.stderr":
+                                configuration["stream"] = sys.stderr
+                        elif handler_name == "syslog":
+                            if configuration["socktype"] == "ext://socket.SOCK_STREAM":
+                                configuration["socktype"] = socket.SOCK_STREAM
+                            elif configuration["socktype"] == "ext://socket.SOCK_DGRAM":
+                                configuration["socktype"] = socket.SOCK_DGRAM
+
+                        _ = configuration.pop("enabled")
+                        formatter_name = configuration.pop("formatter")
+                        level = logging_utils.get_level(configuration.pop("level"))
+                        none_keys = []
+                        for key, value in configuration.items():
+                            if value is None:
+                                none_keys.append(key)
+                        for x in none_keys:
+                            _ = configuration.pop(x)
+
+                        # Create handler, formatter, and add it
+                        handler = logging_utils.supported_handler_classes[handler_name](
+                            **configuration
+                        )
+                        formatter = logging_utils.supported_formatter_classes[
+                            formatter_name
+                        ](**logging_utils.supported_formatter_kwargs[formatter_name])
+                        handler.name = handler_name
+                        handler.setLevel(level)
+                        handler.setFormatter(formatter)
+                        if handler_name in handler_names:
+                            # Remove previously added handler
+                            _log.handlers = [
+                                x for x in logger_handlers if x.name != handler_name
+                            ]
+                        _log.addHandler(handler)
+
+                        if "filename" in configuration:
+                            # filename is already used in log.x(extra)
+                            configuration["file_name"] = configuration["filename"]
+                            del configuration["filename"]
+                        _log.debug(
+                            f"Logging handler added ({handler_name})",
+                            extra=configuration,
+                        )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

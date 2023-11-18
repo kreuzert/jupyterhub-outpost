@@ -20,7 +20,6 @@ class UvicornFilter(logging.Filter):
 
 uvicorn_access.addFilter(UvicornFilter())
 
-
 # Not all JupyterHubs are allowed to override this configuration
 async def allow_override(jupyterhub_name, misc):
     if jupyterhub_name == "vanilla":
