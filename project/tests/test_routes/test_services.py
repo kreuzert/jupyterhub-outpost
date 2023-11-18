@@ -1,6 +1,4 @@
 import pytest
-from app.database.schemas import decrypt
-from app.database.schemas import encrypt
 from app.database.utils import get_service
 from pytest import raises
 from tests.conftest import auth_user2_b64
@@ -196,9 +194,9 @@ def test_allow_same_name_twice_different_jupyterhub(client, db_session):
     service1 = get_service("authenticated", service_name, db_session)
     service2 = get_service("authenticated2", service_name, db_session)
     service3 = get_service("authenticated", service_name, db_session)
-    state1 = decrypt(service1.state)
-    state2 = decrypt(service2.state)
-    state3 = decrypt(service3.state)
+    state1 = service1.state
+    state2 = service2.state
+    state3 = service3.state
     assert state1["pid"] != state2["pid"]
     assert state1["pid"] == state3["pid"]
 

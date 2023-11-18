@@ -4,8 +4,6 @@ from typing import List
 
 from database import models as service_model
 from database import schemas as service_schema
-from database.schemas import decrypt
-from database.schemas import encrypt
 from database.utils import get_db
 from database.utils import get_or_create_jupyterhub
 from database.utils import get_service
@@ -65,7 +63,7 @@ async def get_services(
     spawner = await get_spawner(
         jupyterhub_name,
         service_name,
-        decrypt(service.body),
+        service.body,
         get_auth_state(request.headers),
     )
     ret = await spawner._outpostspawner_db_poll(db)
@@ -88,7 +86,7 @@ async def delete_service(
     spawner = await get_spawner(
         jupyterhub_name,
         service_name,
-        decrypt(service.body),
+        service.body,
         get_auth_state(request.headers),
     )
     await spawner._outpostspawner_db_stop(db)
@@ -118,7 +116,7 @@ async def add_service(
         spawner = await get_spawner(
             jupyterhub_name,
             service.name,
-            decrypt(service.body),
+            service.body,
             get_auth_state(request.headers),
         )
         ret = await spawner._outpostspawner_db_start(db)

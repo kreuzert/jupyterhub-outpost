@@ -7,8 +7,6 @@ import logging
 import os
 from typing import Annotated
 
-from database.schemas import decrypt
-from database.schemas import encrypt
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status
@@ -36,14 +34,15 @@ def get_users():
                         f"No password available for {usernames_via_env[i]}. User not created."
                     )
                 else:
-                    _users[usernames_via_env[i]] = encrypt(passwords_via_env[i])
+                    _users[usernames_via_env[i]] = passwords_via_env[i]
     return _users
 
 
 def verify_user(credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
     users = get_users()
-    if credentials.username not in users.keys() or not credentials.password == decrypt(
-        users[credentials.username], return_type="str"
+    if (
+        credentials.username not in users.keys()
+        or not credentials.password == users[credentials.username]
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
