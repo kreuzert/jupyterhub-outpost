@@ -438,9 +438,10 @@ class JupyterHubOutpost(Application):
         # hook up tornado's and oauthlib's loggers to our own
         for name in ("tornado", "oauthlib", logger_name):
             logger = logging.getLogger(name)
-            logger.propagate = True
             logger.parent = self.log
             logger.setLevel(self.log.level)
+            if name != logger_name:
+                logger.propagate = True
 
     def update_logging(self):
         try:
