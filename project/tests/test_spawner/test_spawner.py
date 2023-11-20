@@ -2,6 +2,8 @@ import os
 import uuid
 
 import pytest
+from app.database.schemas import decrypt
+from app.database.schemas import encrypt
 from spawner import get_spawner
 from spawner import remove_spawner
 
@@ -115,15 +117,15 @@ async def test_simple_spawner_outpostspawner_db_start(db_session):
 
     # Check db entry
     service = get_service(jupyterhub_name, service_name, db_session)
-    assert service.state == {}
+    assert decrypt(service.state) == {}
 
     # Start
     await spawner._outpostspawner_db_start(db_session)
 
     # Check if PID is in db
     service = get_service(jupyterhub_name, service_name, db_session)
-    assert "pid" in service.state.keys()
-    assert service.state.get("pid") != 0
+    assert "pid" in decrypt(service.state).keys()
+    assert decrypt(service.state).get("pid") != 0
 
 
 @pytest.mark.asyncio
@@ -149,12 +151,12 @@ async def test_simple_spawner_two_starts_state_updates(db_session):
 
     # Check if PID is in db
     service = get_service(jupyterhub_name, service_name, db_session)
-    pid1 = service.state.get("pid")
+    pid1 = decrypt(service.state).get("pid")
 
     # Second start
     await spawner._outpostspawner_db_start(db_session)
     service = get_service(jupyterhub_name, service_name, db_session)
-    assert pid1 != service.state.get("pid")
+    assert pid1 != decrypt(service.state).get("pid")
 
 
 @pytest.mark.asyncio

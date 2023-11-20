@@ -3,6 +3,7 @@ import logging
 
 from application import app
 from database import models
+from database.schemas import decrypt
 from spawner import get_wrapper
 from starlette.responses import RedirectResponse
 from tornado.httpclient import AsyncHTTPClient
@@ -47,12 +48,12 @@ async def recreate_tunnels():
                 else:
                     ssh_recreate_at_start = wrapper.ssh_recreate_at_start
                 if ssh_recreate_at_start:
-                    body = service.body
+                    body = decrypt(service.body)
                     tunnel_url = body.get("env", {}).get(
                         "JUPYTERHUB_SETUPTUNNEL_URL", ""
                     )
                     api_token = body.get("env", {}).get("JUPYTERHUB_API_TOKEN", "")
-                    start_response = service.start_response
+                    start_response = decrypt(service.start_response)
 
                     if tunnel_url and api_token:
                         headers["Authorization"] = f"token {api_token}"

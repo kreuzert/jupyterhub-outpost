@@ -11,6 +11,8 @@ from pathlib import Path
 
 import yaml
 from async_generator import aclosing
+from database.schemas import decrypt
+from database.schemas import encrypt
 from database.utils import get_service
 from jupyterhub.log import CoroutineLogFormatter
 from jupyterhub.spawner import LocalProcessSpawner
@@ -286,8 +288,8 @@ class JupyterHubOutpost(Application):
                     self.log.exception(f"{self._log_name} - Start failed")
                     raise
                 service = get_service(jupyterhub_name, self.name, db)
-                service.state = self.get_state()
-                service.start_response = {"service": ret}
+                service.state = encrypt(self.get_state())
+                service.start_response = encrypt({"service": ret})
                 db.commit()
                 return ret
 
@@ -296,7 +298,7 @@ class JupyterHubOutpost(Application):
                 wrapper.update_logging()
                 self.log.debug(f"{self._log_name} - Poll service")
                 service = get_service(jupyterhub_name, self.name, db)
-                self.load_state(service.state)
+                self.load_state(decrypt(service.state))
                 ret = self.poll()
                 if inspect.isawaitable(ret):
                     ret = await ret
@@ -316,7 +318,7 @@ class JupyterHubOutpost(Application):
             async def _outpostspawner_db_stop_call(self, db, now=False):
                 # Update from db
                 service = get_service(jupyterhub_name, self.name, db)
-                self.load_state(service.state)
+                self.load_state(decrypt(service.state))
                 try:
                     ret = self.stop(now)
                     if inspect.isawaitable(ret):
@@ -436,10 +438,9 @@ class JupyterHubOutpost(Application):
         # hook up tornado's and oauthlib's loggers to our own
         for name in ("tornado", "oauthlib", logger_name):
             logger = logging.getLogger(name)
+            logger.propagate = True
             logger.parent = self.log
             logger.setLevel(self.log.level)
-            if name != logger_name:
-                logger.propagate = True
 
     def update_logging(self):
         try:
