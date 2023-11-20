@@ -58,6 +58,7 @@ class Service(BaseModel):
         body["misc"] = kwargs.pop("misc", {})
         body["user_options"] = kwargs.pop("user_options", {})
         body["certs"] = kwargs.pop("certs", {})
+        body["internal_trust_bundles"] = kwargs.pop("internal_trust_bundles", {})
         # kwargs["body"] = body
         kwargs["body"] = encrypt(body)
         state = kwargs.pop("state", {})

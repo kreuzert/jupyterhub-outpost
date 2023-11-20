@@ -412,17 +412,17 @@ async def test_stop_slow_process_no_mem(db_session):
 @pytest.mark.parametrize("spawner_config", [spawner_config_good])
 async def test_certs_created(db_session):
     user_name = "testuser"
+    certs = {
+        "keyfile": "cert.key",
+        "certfile": "cert.crt",
+        "cafile": "hub_ca.crt",
+    }
     body = {
-        "certs": {
-            "keyfile": "cert.key",
-            "certfile": "cert.crt",
-            "cafile": "hub_ca.crt",
-        },
         "env": {"JUPYTERHUB_USER": user_name},
     }
     service_name = "0"
     # Create Spawner
-    spawner = await get_spawner(jupyterhub_name, service_name, body)
+    spawner = await get_spawner(jupyterhub_name, service_name, body, certs=certs)
     cert_paths = spawner.cert_paths.copy()
     from spawner import hub
 
@@ -434,7 +434,7 @@ async def test_certs_created(db_session):
     for key, path in spawner.cert_paths.items():
         with open(path, "r") as f:
             file = f.read()
-        assert file == body["certs"][key]
+        assert file == certs[key]
 
     # Test cleanup
     remove_spawner(jupyterhub_name, service_name)
@@ -457,7 +457,9 @@ async def test_certs_path_in_env(db_session):
     }
     service_name = "0"
     # Create Spawner
-    spawner = await get_spawner(jupyterhub_name, service_name, body)
+    spawner = await get_spawner(
+        jupyterhub_name, service_name, body, certs=body["certs"]
+    )
     cert_paths = spawner.cert_paths.copy()
     from spawner import hub
 

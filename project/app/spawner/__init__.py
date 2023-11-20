@@ -19,10 +19,24 @@ def remove_wrapper() -> None:
 
 
 async def get_spawner(
-    jupyterhub_name: str, service_name: str, orig_body: bytes, auth_state: dict = {}
+    jupyterhub_name: str,
+    service_name: str,
+    orig_body: bytes,
+    auth_state: dict = {},
+    certs: dict = {},
+    internal_trust_bundles: dict = {},
 ) -> Spawner:
+    if not certs and "certs" in orig_body.keys():
+        certs = orig_body.pop("certs", {})
+    if not internal_trust_bundles and "internal_trust_bundles" in orig_body.keys():
+        internal_trust_bundles = orig_body.pop("internal_trust_bundles", {})
     ret = await get_wrapper().get_spawner(
-        jupyterhub_name, service_name, orig_body, auth_state
+        jupyterhub_name,
+        service_name,
+        orig_body,
+        auth_state,
+        certs,
+        internal_trust_bundles,
     )
     return ret
 

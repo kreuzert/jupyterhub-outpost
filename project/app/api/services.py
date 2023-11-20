@@ -107,6 +107,16 @@ async def add_service(
     log.debug(f"Create service {service.name} for {jupyterhub_name}")
     jupyterhub = get_or_create_jupyterhub(jupyterhub_name, db)
     d = service.dict()
+
+    # Do not store certs and internal_trust_bundles from db
+    # That's just to much unused data, it's only used during startup
+    # and therefore it's enough to store it in memory
+    dec_body = decrypt(service.body)
+    certs = dec_body.pop("certs", {})
+    internal_trust_bundles = dec_body.pop("internal_trust_bundles", {})
+    d["body"] = encrypt(dec_body)
+
+    # Add jupyterhub to db
     d["jupyterhub"] = jupyterhub
     new_service = service_model.Service(**d)
     db.add(new_service)
@@ -120,6 +130,8 @@ async def add_service(
             service.name,
             decrypt(service.body),
             get_auth_state(request.headers),
+            certs,
+            internal_trust_bundles,
         )
         ret = await spawner._outpostspawner_db_start(db)
         service_ = get_service(jupyterhub_name, service.name, db)
