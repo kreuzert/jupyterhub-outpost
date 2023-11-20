@@ -98,14 +98,25 @@ class JupyterHubOutpost(Application):
             del self.spawners[f"{jupyterhub_name}-{service_name}"]
 
     async def get_spawner(
-        self, jupyterhub_name, service_name, orig_body, auth_state={}
+        self,
+        jupyterhub_name,
+        service_name,
+        orig_body,
+        auth_state={},
+        certs={},
+        internal_trust_bundles={},
     ):
         if f"{jupyterhub_name}-{service_name}" not in self.spawners:
             self.log.debug(
                 f"Create Spawner object {service_name} for {jupyterhub_name}"
             )
             spawner = await self._new_spawner(
-                jupyterhub_name, service_name, orig_body, auth_state
+                jupyterhub_name,
+                service_name,
+                orig_body,
+                auth_state,
+                certs,
+                internal_trust_bundles,
             )
             self.spawners[f"{jupyterhub_name}-{service_name}"] = spawner
         return self.spawners[f"{jupyterhub_name}-{service_name}"]
@@ -181,7 +192,13 @@ class JupyterHubOutpost(Application):
 
     # Create a DummySpawner object.
     async def _new_spawner(
-        wrapper, jupyterhub_name, service_name, orig_body, auth_state
+        wrapper,
+        jupyterhub_name,
+        service_name,
+        orig_body,
+        auth_state,
+        certs,
+        internal_trust_bundles,
     ):
         # self.config.get('spawner_class', LocalProcessSpawner).get()
         # spawner_class = self.config.get("JupyterHubOutpost", {}).get("spawner_class", LocalProcessSpawner)
@@ -367,7 +384,14 @@ class JupyterHubOutpost(Application):
         wrapper.log.info(
             f"{config['user'].name}:{service_name} - Create Spawner ( {spawner_class_name} ) object for jupyterhub {jupyterhub_name}"
         )
-        spawner = DummySpawner(jupyterhub_name, service_name, orig_body, **config)
+        spawner = DummySpawner(
+            jupyterhub_name,
+            service_name,
+            orig_body,
+            certs,
+            internal_trust_bundles,
+            **config,
+        )
         return spawner
 
     _log_formatter_cls = CoroutineLogFormatter
@@ -438,9 +462,10 @@ class JupyterHubOutpost(Application):
         # hook up tornado's and oauthlib's loggers to our own
         for name in ("tornado", "oauthlib", logger_name):
             logger = logging.getLogger(name)
-            logger.propagate = True
             logger.parent = self.log
             logger.setLevel(self.log.level)
+            if name != logger_name:
+                logger.propagate = True
 
     def update_logging(self):
         try:

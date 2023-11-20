@@ -3,6 +3,7 @@ from app.database.schemas import decrypt
 from app.database.schemas import encrypt
 from app.database.utils import get_service
 from pytest import raises
+from spawner import get_spawner
 from tests.conftest import auth_user2_b64
 from tests.conftest import auth_user_b64
 from tests.conftest import auth_user_wrong_pw
@@ -158,6 +159,50 @@ def test_last_update_updated(client, db_session):
     response = client.get(f"/services/{service_name}", headers=headers_auth_user)
     after_poll = service.last_update
     assert after_spawn != after_poll
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("spawner_config", [simple_direct])
+async def test_certs_not_stored_in_db(client, db_session):
+    service_name = "user-servername"
+    service_data = {
+        "name": service_name,
+        "certs": {
+            "keyfile": "cert.key",
+            "certfile": "cert.crt",
+            "cafile": "hub_ca.crt",
+        },
+        "internal_trust_bundles": {
+            "hub-ca": "anything",
+            "proxy-api-ca": "useless",
+            "proxy-client-ca": "to",
+            "notebooks-ca": "fill",
+            "services-ca": "sausage",
+        },
+        "env": {"JUPYTERHUB_USER": "user"},
+    }
+    response = client.post("/services", json=service_data, headers=headers_auth_user)
+    assert response.status_code == 200, response.text
+    service = get_service(jupyterhub_name, service_name, db_session)
+    body = decrypt(service.body)
+    assert "env" in body.keys()
+    assert "certs" not in body.keys()
+    assert "internal_trust_bundles" not in body.keys()
+
+    # Certs should not stored in database, but in memory it's required
+    spawner = await get_spawner(jupyterhub_name, service_name, {})
+
+    # certs are stored in paths describe in cert_paths
+    assert spawner.cert_paths
+    for key, value in service_data["certs"].items():
+        with open(spawner.cert_paths[key], "r") as f:
+            assert f.read() == value
+
+    # internal_trust_bundles stored in paths described, too
+    assert spawner.internal_trust_bundles
+    for key, value in service_data["internal_trust_bundles"].items():
+        with open(spawner.internal_trust_bundles[key], "r") as f:
+            assert f.read() == value
 
 
 @pytest.mark.parametrize("spawner_config", [simple_direct])

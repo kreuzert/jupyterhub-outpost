@@ -47,7 +47,15 @@ class OutpostSpawner:
     env = {}
     jupyterhub_name = ""
 
-    def __init__(self, jupyterhub_name, service_name, orig_body, **config):
+    def __init__(
+        self,
+        jupyterhub_name,
+        service_name,
+        orig_body,
+        certs,
+        internal_trust_bundles,
+        **config,
+    ):
         self.user = config["user"]
         self.hub = config["hub"]
         self.jupyterhub_name = jupyterhub_name
@@ -56,7 +64,7 @@ class OutpostSpawner:
             self.env[key] = str(value)
         self.user_options = orig_body.get("user_options", {})
 
-        if orig_body.get("certs", {}):
+        if certs:
             self.internal_ssl = True
             out_dir = f"{certs_dir}/{jupyterhub_name}-{self.name}"
             shutil.rmtree(out_dir, ignore_errors=True)
@@ -69,7 +77,7 @@ class OutpostSpawner:
             }
             for key, path in self.cert_paths.items():
                 with open(path, "w") as f:
-                    f.write(orig_body.get("certs", {}).get(key, ""))
+                    f.write(certs.get(key, ""))
 
             internal_trust_bundles_list = [
                 "hub-ca",
@@ -82,7 +90,7 @@ class OutpostSpawner:
             for key in internal_trust_bundles_list:
                 path = f"{out_dir}/{key}.crt"
                 with open(path, "w") as f:
-                    f.write(orig_body.get("internal_trust_bundles", {}).get(key, ""))
+                    f.write(internal_trust_bundles.get(key, ""))
                 self.internal_trust_bundles[key] = path
         else:
             self.internal_ssl = False
