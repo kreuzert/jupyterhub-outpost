@@ -11,6 +11,7 @@ from pathlib import Path
 
 import yaml
 from async_generator import aclosing
+from database import models as service_model
 from database.schemas import decrypt
 from database.schemas import encrypt
 from database.utils import get_service
@@ -20,6 +21,7 @@ from jupyterhub.spawner import Spawner
 from jupyterhub.traitlets import EntryPointType
 from jupyterhub.utils import iterate_until
 from jupyterhub.utils import maybe_future
+from sqlalchemy import func
 from tornado.httpclient import AsyncHTTPClient
 from tornado.httpclient import HTTPRequest
 from tornado.log import access_log
@@ -36,6 +38,7 @@ from traitlets import Union
 from traitlets.config import Application
 
 from . import logging_utils
+from .hub import certs_dir
 from .hub import OutpostJupyterHub
 from .hub import OutpostSpawner
 from .hub import OutpostUser
@@ -70,31 +73,31 @@ class JupyterHubOutpost(Application):
             self.log.debug(
                 f"Remove spawner in memory {service_name} for {jupyterhub_name}"
             )
-            if self.spawners[f"{jupyterhub_name}-{service_name}"].cert_paths:
-                for path in self.spawners[
-                    f"{jupyterhub_name}-{service_name}"
-                ].cert_paths.values():
-                    try:
-                        Path(path).unlink(missing_ok=True)
-                    except:
-                        self.log.exception(f"Could not delete {path} cert file.")
-                for path in self.spawners[
-                    f"{jupyterhub_name}-{service_name}"
-                ].internal_trust_bundles.values():
-                    try:
-                        Path(path).unlink(missing_ok=True)
-                    except:
-                        self.log.exception(f"Could not delete {path} cert file.")
+            spawner = self.spawners[f"{jupyterhub_name}-{service_name}"]
+            cert_base_path = f"{certs_dir}/{jupyterhub_name}-{service_name}"
+            cert_basenames = [
+                f"{service_name}.key",
+                f"{service_name}.crt",
+                "notebooks-ca_trust.crt",
+                "hub-ca.crt",
+                "proxy-api-ca.crt",
+                "proxy-client-ca.crt",
+                "notebooks-ca.crt",
+                "services-ca.crt",
+                f"{spawner.user.name}.key",
+                f"{spawner.user.name}.crt",
+            ]
+            for basename in cert_basenames:
                 try:
-                    Path(
-                        self.spawners[f"{jupyterhub_name}-{service_name}"].cert_paths[
-                            "certfile"
-                        ]
-                    ).parent.rmdir()
+                    Path(f"{cert_base_path}/{basename}").unlink(missing_ok=True)
                 except:
-                    self.log.exception(
-                        "Could not delete parent cert dir of {self._log_name}."
-                    )
+                    self.log.exception(f"Could not delete {basename} cert file.")
+            try:
+                Path(cert_base_path).rmdir()
+            except:
+                self.log.exception(
+                    f"Could not delete parent cert dir of {jupyterhub_name}-{service_name}."
+                )
             del self.spawners[f"{jupyterhub_name}-{service_name}"]
 
     async def get_spawner(
@@ -190,6 +193,163 @@ class JupyterHubOutpost(Application):
             request_kwargs = self.request_kwargs
         return request_kwargs
 
+    flavors_undefined_max = Any(
+        default_value=-1,
+        config=True,
+        help="""
+        Configure the amount of JupyterLabs JupyterHubOutpost should offer,
+        if flavor is not defined in user_options, or the given flavor is not
+        configured in JupyterHubOutpost.flavors .
+        Set to -1 to not restrict it.
+        Set 0 to not allow undefined flavors (or flavors that are not part of 
+        JupyterHubOutpost.flavors ) at all.
+        
+        default: -1
+        
+        May be a coroutine.
+        
+        Example::
+        
+            async def flavors_undefined_max(jupyterhub_name):
+                if jupyterhub_name == "empire":
+                    # The empire is not allowed to use our resources,
+                    # other than the defined JupyterHubOutpost.flavors
+                    return 0
+                elif jupyterhub_name == "rebellion":
+                    # The rebellion JupyterHub can use all available
+                    # resources
+                    return -1
+                else:
+                    # Other JupyterHubs may start up to 10 "undefined" /
+                    # not configured notebook servers on this Outpost.
+                    return 10
+            
+            c.JupyterHubOutpost.flavors_undefined_max = flavors_undefined_max
+        """,
+    )
+
+    async def get_flavors_undefined_max(self, jupyterhub_name):
+        if callable(self.flavors_undefined_max):
+            flavors_undefined_max = self.flavors_undefined_max(jupyterhub_name)
+            if inspect.isawaitable(flavors_undefined_max):
+                flavors_undefined_max = await flavors_undefined_max
+        else:
+            flavors_undefined_max = self.flavors_undefined_max
+        return flavors_undefined_max
+
+    flavors = Any(
+        default_value={},
+        config=True,
+        help="""
+        Configure the amount of resources JupyterHubOutpost should offer
+        in general, or depending on the connected JupyterHub. Can be a dict
+        or a function. -1 is interpreted as infinite.
+        Set JupyterHubOutpost.flavors_undefined_max to set a maximum value
+        for not configured or undefined flavors. 
+        
+        May be a coroutine.
+        
+        Example::
+            
+            async def flavors(jupyterhub_name):
+                if jupyterhub_name == "empire":
+                    return {
+                        "type_a": 2,
+                        "type_b": 2
+                    }
+                elif jupyterhub_name == "rebellion":
+                    # allow unlimited type_a 
+                    return {
+                        "type_a": -1,
+                        "type_b": 70
+                    }
+                else:                
+                    return {}
+            
+            c.JupyterHubOutpost.flavors = flavors
+        """,
+    )
+
+    async def get_flavors(self, jupyterhub_name):
+        if callable(self.flavors):
+            flavors = self.flavors(jupyterhub_name)
+            if inspect.isawaitable(flavors):
+                flavors = await flavors
+        else:
+            flavors = self.flavors
+        return flavors
+
+    flavors_update_token = Any(
+        default_value="",
+        config=True,
+        help="""
+        Whenever a notebook server was started / stopped, JupyterHub Outpost
+        will use the env variable JUPYTERHUB_FLAVORS_UPDATE_URL (sent in request
+        by OutpostSpawner), to send JupyterHub the current usage numbers
+        per flavor for this JupyterHub.
+        
+        To authenticate this update, JupyterHub expects a service token as authentication,
+        which can be configured here. 
+        
+        Can be a string or a callable.
+        
+        May be a coroutine.
+        
+        Example::
+        
+            import os
+            async def flavors_update_token(jupyterhub_name):
+                if jupyterhub_name == "abc":
+                    return os.environ.get("JUPYTERHUB_ABC_UPDATE_FLAVORS_TOKEN", "")
+                elif jupyterhub_name == "def":
+                    return os.environ.get("JUPYTERHUB_DEF_UPDATE_FLAVORS_TOKEN", "")
+                else:
+                    # No request send to JupyterHub with updated information
+                    return ""
+            c.JupyterHubOutpost.flavors_update_token = flavors_update_token
+        """,
+    )
+
+    async def get_flavors_update_token(self, jupyterhub_name):
+        if callable(self.flavors_update_token):
+            flavors_update_token = self.flavors_update_token(jupyterhub_name)
+            if inspect.isawaitable(flavors_update_token):
+                flavors_update_token = await flavors_update_token
+        else:
+            flavors_update_token = self.flavors_update_token
+        return flavors_update_token
+
+    send_events = Any(
+        default_value=True,
+        config=True,
+        help="""
+        Whether JupyterHub Outpost should send events to JupyterHub or not.
+        This must be boolean or a callable.
+        If this setting is true and JUPYTERHUB_EVENTS_URL is given via request
+        body, JupyterHub Outpost will send events to JupyterHub.
+        
+        May be a coroutine.
+        
+        Example::
+        
+            async def send_events(jupyterhub_name):
+                if jupyterhub_name == "abc":
+                    return False
+                else:
+                    return True
+            c.JupyterHubOutpost.send_events = send_events
+        """,
+    )
+
+    async def get_send_events(self, jupyterhub_name):
+        if callable(self.send_events):
+            send_events = self.send_events(jupyterhub_name)
+            if inspect.isawaitable(send_events):
+                send_events = await send_events
+        else:
+            send_events = self.send_events
+        return send_events
+
     # Create a DummySpawner object.
     async def _new_spawner(
         wrapper,
@@ -224,6 +384,62 @@ class JupyterHubOutpost(Application):
                     force_instance=True, defaults=dict(validate_cert=False)
                 )
 
+            async def _outpostspawner_get_flavor_values(self, db):
+                configured_flavors = await wrapper.get_flavors(self.jupyterhub_name)
+                flavors = (
+                    db.query(
+                        service_model.Service.flavor,
+                        func.count(service_model.Service.flavor),
+                    )
+                    .filter(
+                        service_model.Service.jupyterhub_username
+                        == self.jupyterhub_name
+                    )
+                    .group_by(service_model.Service.flavor)
+                )
+                undefined_max = await wrapper.get_flavors_undefined_max(
+                    self.jupyterhub_name
+                )
+                ret = {"_undefined": {"max": undefined_max, "current": 0}}
+                for flavor in flavors:
+                    if flavor[0] in configured_flavors.keys():
+                        ret[flavor[0]] = {
+                            "max": configured_flavors[flavor[0]],
+                            "current": flavor[1],
+                        }
+                    else:
+                        ret["_undefined"]["current"] += flavor[1]
+                return ret
+
+            async def _outpostspawner_send_flavor_update(self, db):
+                flavor_update_url = self.env.get("JUPYTERHUB_FLAVORS_UPDATE_URL", "")
+                token = await wrapper.get_flavors_update_token(self.jupyterhub_name)
+                if not (token and flavor_update_url):
+                    self.log.info(
+                        f"{self._log_name} - Do not send flavor update to {self.jupyterhub_name}"
+                    )
+                    return
+                request_header = {
+                    "Authorization": f"token {token}",
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                }
+                body = await self._outpostspawner_get_flavor_values(db)
+
+                req = HTTPRequest(
+                    url=flavor_update_url,
+                    method="POST",
+                    headers=request_header,
+                    body=json.dumps(body),
+                    **wrapper.get_request_kwargs(),
+                )
+                try:
+                    await self.http_client.fetch(req)
+                except:
+                    self.log.exception(
+                        f"{self._log_name} - Could not send flavor update to {flavor_update_url}"
+                    )
+
             async def _outpostspawner_send_event(self, event):
                 request_header = {
                     "Authorization": f"token {self.env.get('JUPYTERHUB_API_TOKEN')}",
@@ -242,7 +458,7 @@ class JupyterHubOutpost(Application):
                     await self.http_client.fetch(req)
                 except:
                     self.log.exception(
-                        f"Could not send event to {event_url} for {self._log_name}: {event.get('html_message', event.get('message', ''))}"
+                        f"{self._log_name} - Could not send event to {event_url} for {self._log_name}: {event.get('html_message', event.get('message', ''))}"
                     )
 
             async def _outpostspawner_forward_events(self):
@@ -266,12 +482,39 @@ class JupyterHubOutpost(Application):
             async def _outpostspawner_db_start(self, db):
                 wrapper.update_logging()
                 self.log.info(f"{self._log_name} - Start service")
+
+                # check if the chosen flavor is still available
+                flavor = self.user_options.get("flavor", "_undefined")
+                current_flavor_values = await self._outpostspawner_get_flavor_values(db)
+                if flavor in current_flavor_values.keys():
+                    current_flavor_value = current_flavor_values.get(flavor, {}).get(
+                        "current", 0
+                    )
+                else:
+                    current_flavor_value = current_flavor_values.get(
+                        "_undefined", {}
+                    ).get("current", 0)
+                undefined_max = await wrapper.get_flavors_undefined_max(
+                    self.jupyterhub_name
+                )
+                max_flavor_value = current_flavor_values.get(flavor, {}).get(
+                    "max", undefined_max
+                )
+                if current_flavor_value > max_flavor_value and max_flavor_value != -1:
+                    # max = -1 -> infinite
+                    # This service is already stored in the database. If current == max
+                    # this service is the last one that's allowed.
+                    raise Exception(
+                        f"{self._log_name} - Start with {flavor} not allowed. Maximum ({max_flavor_value}) already reached."
+                    )
+
                 self._spawn_future = asyncio.ensure_future(
                     self._outpostspawner_db_start_call(db)
                 )
 
                 forward_future = None
-                if self.env.get("JUPYTERHUB_EVENTS_URL", ""):
+                send_events = await wrapper.get_send_events(self.jupyterhub_name)
+                if self.env.get("JUPYTERHUB_EVENTS_URL", "") and send_events:
                     forward_future = self._outpostspawner_forward_events()
 
                 await asyncio.wait([self._spawn_future])

@@ -426,6 +426,8 @@ async def test_certs_created(db_session):
     cert_paths = spawner.cert_paths.copy()
     from spawner import hub
 
+    x = hub.certs_dir
+
     assert cert_paths == {
         "keyfile": f"{hub.certs_dir}/{jupyterhub_name}-{service_name}/{user_name}.key",
         "certfile": f"{hub.certs_dir}/{jupyterhub_name}-{service_name}/{user_name}.crt",
@@ -436,11 +438,18 @@ async def test_certs_created(db_session):
             file = f.read()
         assert file == certs[key]
 
+    trust_bundles = spawner.internal_trust_bundles.copy()
+    for key, path in spawner.internal_trust_bundles.items():
+        assert os.path.exists(path) == True
+
     # Test cleanup
     remove_spawner(jupyterhub_name, service_name)
     for path in cert_paths.values():
         assert os.path.exists(path) == False
     assert os.path.exists(os.path.dirname(cert_paths["certfile"])) == False
+
+    for key, path in trust_bundles.items():
+        assert os.path.exists(path) == False
 
 
 @pytest.mark.asyncio

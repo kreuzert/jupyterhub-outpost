@@ -60,6 +60,7 @@ class OutpostSpawner:
         self.hub = config["hub"]
         self.jupyterhub_name = jupyterhub_name
         self.name = service_name
+        self.env = {}
         for key, value in orig_body.get("env", {}).items():
             self.env[key] = str(value)
         self.user_options = orig_body.get("user_options", {})

@@ -64,7 +64,7 @@ def app(spawner_config, monkeypatch) -> Generator[FastAPI, Any, None]:
 
     monkeypatch.setattr(spawner, "get_wrapper", get_wrapper)
     monkeypatch.setattr(spawner, "_wrapper", _wrapper)
-    monkeypatch.setattr(hub, "certs_dir", f"/tmp/jupyterhub-certs/{uuid4().hex}")
+    # monkeypatch.setattr(hub, "certs_dir", f"/tmp/jupyterhub-certs/{uuid4().hex}")
     yield _app
     from spawner import remove_wrapper
 

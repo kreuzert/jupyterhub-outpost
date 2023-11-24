@@ -36,3 +36,4 @@ class Service(Base):
     state = Column(LargeBinary, default=None)
     start_response = Column(LargeBinary, default=None)
     jupyterhub: Mapped["JupyterHub"] = relationship(back_populates="services")
+    flavor = Column(String, default="_undefined")

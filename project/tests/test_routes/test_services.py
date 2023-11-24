@@ -19,6 +19,7 @@ headers_auth_wrong_pw = {"Authorization": f"Basic {auth_user_wrong_pw}"}
 
 auth_state_required = "./tests/test_routes/auth_state_required.py"
 simple_direct = "./tests/test_routes/simple_direct.py"
+simple_flavors_max_0 = "./tests/test_routes/simple_flavors_max_0.py"
 simple_override = "./tests/test_routes/simple_override.py"
 simple_direct_sanitized = "./tests/test_routes/simple_direct_sanitized.py"
 
@@ -310,3 +311,163 @@ def test_auth_state_in_start_poll_stop(client, db_session):
 
     response = client.get(f"/services/{service_name}", headers=headers)
     assert response.status_code == 404, response.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("spawner_config", [simple_flavors_max_0])
+async def test_flavor_max_0(client, db_session):
+    service_name = "user-servername"
+    service_data = {"name": service_name, "env": {"JUPYTERHUB_USER": "user1"}}
+    response = client.post("/services", json=service_data, headers=headers_auth_user)
+    assert response.status_code == 419
+    assert (
+        response.json().get("args")[0]
+        == "user1:user-servername - Start with _undefined not allowed. Maximum (0) already reached."
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("spawner_config", [simple_flavors_max_0])
+async def test_flavor_hub_specific_allowance(client, db_session, monkeypatch):
+    mock_args = None
+    calls = 0
+
+    async def mock_fetch(self, *args, **kwargs):
+        nonlocal mock_args
+        nonlocal calls
+        mock_args = args
+        calls += 1
+
+    from tornado.httpclient import AsyncHTTPClient
+
+    monkeypatch.setattr(AsyncHTTPClient, "fetch", mock_fetch)
+
+    service_data = [
+        {
+            "name": "user-servername-1",
+            "env": {
+                "JUPYTERHUB_USER": "user1",
+                "JUPYTERHUB_FLAVORS_UPDATE_URL": "mock_url",
+            },
+            "user_options": {"flavor": "typea"},
+        },
+        {
+            "name": "user-servername-2",
+            "env": {
+                "JUPYTERHUB_USER": "user1",
+                "JUPYTERHUB_FLAVORS_UPDATE_URL": "mock_url",
+            },
+            "user_options": {"flavor": "typea"},
+        },
+        {
+            "name": "user-servername-3",
+            "env": {"JUPYTERHUB_USER": "user1"},
+            "user_options": {"flavor": "typea"},
+        },
+        {
+            "name": "user-servername-4",
+            "env": {"JUPYTERHUB_USER": "user1"},
+            "user_options": {"flavor": "typea"},
+        },
+        {
+            "name": "user-servername-5",
+            "env": {"JUPYTERHUB_USER": "user1"},
+            "user_options": {"flavor": "typea"},
+        },
+        {
+            "name": "user-servername-6",
+            "env": {
+                "JUPYTERHUB_USER": "user1",
+                "JUPYTERHUB_FLAVORS_UPDATE_URL": "mock_url",
+            },
+            "user_options": {"flavor": "typea"},
+        },
+    ]
+
+    # Start 5 notebook server in name of JupyterHub "authenticated" (headers_auth_user)
+    # This should be fine
+    i = 0
+    for service_d in service_data[:5]:
+        response = client.post("/services", json=service_d, headers=headers_auth_user)
+        assert response.status_code == 200
+        if i < 2:
+            # Should not be called when mock_url and token is set
+            assert mock_args[0].headers["Authorization"] == "token secret1"
+            assert mock_args[0].url == "mock_url"
+            i += 1
+            assert calls == i
+        else:
+            # Should not be called when mock_url is not set
+            assert calls == i
+
+    # The sixth one should fail
+    response = client.post("/services", json=service_data[5], headers=headers_auth_user)
+    assert response.status_code == 419
+    assert (
+        response.json().get("args")[0]
+        == f"user1:{service_data[5]['name']} - Start with typea not allowed. Maximum (5) already reached."
+    )
+    assert mock_args[0].headers["Authorization"] == "token secret1"
+    assert mock_args[0].url == "mock_url"
+    i += 1
+    assert calls == i
+
+    # Stop one previously started of typea
+    response = client.delete(
+        f"/services/{service_data[0]['name']}", headers=headers_auth_user
+    )
+    assert response.status_code == 200, response.text
+    assert mock_args[0].headers["Authorization"] == "token secret1"
+    assert mock_args[0].url == "mock_url"
+    i += 1
+    assert calls == i
+
+    # The sixth one should now succeed
+    response = client.post("/services", json=service_data[5], headers=headers_auth_user)
+    assert response.status_code == 200
+    assert mock_args[0].headers["Authorization"] == "token secret1"
+    assert mock_args[0].url == "mock_url"
+    i += 1
+    assert calls == i
+
+    # For jupyterhub "authenticated2" it should fail after one successful start
+    response = client.post(
+        "/services", json=service_data[0], headers=headers_auth_user2
+    )
+    assert response.status_code == 200
+    assert mock_args[0].headers["Authorization"] == "token secret2"
+    assert mock_args[0].url == "mock_url"
+    i += 1
+    assert calls == i
+    response = client.post(
+        "/services", json=service_data[1], headers=headers_auth_user2
+    )
+    assert response.status_code == 419
+    assert mock_args[0].headers["Authorization"] == "token secret2"
+    assert mock_args[0].url == "mock_url"
+    i += 1
+    assert calls == i
+    assert (
+        response.json().get("args")[0]
+        == f"user1:{service_data[1]['name']} - Start with typea not allowed. Maximum (1) already reached."
+    )
+
+    other_flavor = {
+        "name": "user-servername-other",
+        "env": {
+            "JUPYTERHUB_USER": "user1",
+            "JUPYTERHUB_FLAVORS_UPDATE_URL": "mock_url",
+        },
+        "user_options": {"flavor": "typec"},
+    }
+    # typec is not configured in flavors, this should not be allowed
+    response = client.post("/services", json=other_flavor, headers=headers_auth_user2)
+    assert response.status_code == 419
+    assert (
+        response.json().get("args")[0]
+        == f"user1:{other_flavor['name']} - Start with typec not allowed. Maximum (0) already reached."
+    )
+    assert mock_args[0].headers["Authorization"] == "token secret2"
+    assert mock_args[0].url == "mock_url"
+    i += 1
+    assert calls == i

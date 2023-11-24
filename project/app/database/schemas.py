@@ -48,6 +48,7 @@ class Service(BaseModel):
     body: bytes
     state: bytes
     start_response: bytes
+    flavor: str | None = "_undefined"
 
     class Config:
         orm_mode = True
@@ -60,6 +61,7 @@ class Service(BaseModel):
         body["certs"] = kwargs.pop("certs", {})
         body["internal_trust_bundles"] = kwargs.pop("internal_trust_bundles", {})
         # kwargs["body"] = body
+        kwargs["flavor"] = body.get("user_options", {}).get("flavor", "_undefined")
         kwargs["body"] = encrypt(body)
         state = kwargs.pop("state", {})
         kwargs["state"] = encrypt(state)

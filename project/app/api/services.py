@@ -42,6 +42,41 @@ def get_auth_state(headers):
     return ret
 
 
+async def full_stop_and_remove(
+    jupyterhub_name, service_name, db, request, delete=False
+):
+    service = get_service(jupyterhub_name, service_name, db)
+    service.stop_pending = True
+    db.add(service)
+    db.commit()
+    spawner = await get_spawner(
+        jupyterhub_name,
+        service_name,
+        decrypt(service.body),
+        get_auth_state(request.headers),
+    )
+    spawner.log.info(f"{spawner._log_name} - Stop service and remove it from database.")
+    try:
+        await spawner._outpostspawner_db_stop(db)
+    except:
+        spawner.log.exception(f"{spawner._log_name} - Stop failed.")
+    finally:
+        try:
+            await spawner._outpostspawner_send_flavor_update(db)
+        except:
+            spawner.log.exception(
+                f"{spawner._log_name} - Could not send flavor update to {jupyterhub_name}."
+            )
+        remove_spawner(jupyterhub_name, service_name)
+    if delete:
+        try:
+            db.delete(service)
+        except:
+            log.exception(
+                f"{jupyterhub_name}-{service_name} - Could not delete service from database"
+            )
+
+
 @router.get("/services/")
 @catch_exception
 async def list_services(
@@ -80,19 +115,8 @@ async def delete_service(
     request: Request,
     db: Session = Depends(get_db),
 ) -> JSONResponse:
-    log.debug(f"Delete service {service_name} for {jupyterhub_name}")
-    service = get_service(jupyterhub_name, service_name, db)
-    service.stop_pending = True
-    db.add(service)
-    db.commit()
-    spawner = await get_spawner(
-        jupyterhub_name,
-        service_name,
-        decrypt(service.body),
-        get_auth_state(request.headers),
-    )
-    await spawner._outpostspawner_db_stop(db)
-    remove_spawner(jupyterhub_name, service_name)
+    log.info(f"Delete service {service_name} for {jupyterhub_name}")
+    await full_stop_and_remove(jupyterhub_name, service_name, db, request)
     return JSONResponse(content={}, status_code=200)
 
 
@@ -104,8 +128,9 @@ async def add_service(
     request: Request,
     db: Session = Depends(get_db),
 ) -> JSONResponse:
-    log.debug(f"Create service {service.name} for {jupyterhub_name}")
+    log.info(f"Create service {service.name} for {jupyterhub_name}")
     jupyterhub = get_or_create_jupyterhub(jupyterhub_name, db)
+    service_name = service.name
     d = service.dict()
 
     # Do not store certs and internal_trust_bundles from db
@@ -133,12 +158,23 @@ async def add_service(
             certs,
             internal_trust_bundles,
         )
-        ret = await spawner._outpostspawner_db_start(db)
-        service_ = get_service(jupyterhub_name, service.name, db)
-        service_.start_pending = False
-        db.add(service_)
-        db.commit()
-        return ret
+        try:
+            ret = await spawner._outpostspawner_db_start(db)
+        except Exception as e:
+            try:
+                await full_stop_and_remove(jupyterhub_name, service_name, db, request)
+            except:
+                log.exception(
+                    f"{jupyterhub_name}-{service_name} - Could not stop and remove"
+                )
+            raise e
+        else:
+            service_ = get_service(jupyterhub_name, service.name, db)
+            service_.start_pending = False
+            db.add(service_)
+            db.commit()
+            await spawner._outpostspawner_send_flavor_update(db)
+            return ret
 
     if request.headers.get("execution-type", "sync") == "async":
         task = asyncio.create_task(async_start())
@@ -148,3 +184,12 @@ async def add_service(
     else:
         ret = await async_start()
         return JSONResponse(content={"service": ret}, status_code=200)
+
+
+## Configuration für flavors (Traitlets) hinzufügen
+## Tests schreiben:
+# 1. flavor taucht in Datenbank auf
+# 2. Configuration funktioniert
+# 3. Certs werden gelöscht, wenn spawner aus mem gelöscht wurde
+# 4. reached max flavor wirft sinnvolle Exception
+# 5. failed start function -> no service / spawner left in db/mem
