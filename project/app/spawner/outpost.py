@@ -350,6 +350,75 @@ class JupyterHubOutpost(Application):
             send_events = self.send_events
         return send_events
 
+    http_client = Any
+
+    @default("http_client")
+    def _default_http_client(self):
+        return AsyncHTTPClient(force_instance=True, defaults=dict(validate_cert=False))
+
+    async def _outpostspawner_get_flavor_values(self, db, jupyterhub_name):
+        configured_flavors = await self.get_flavors(jupyterhub_name)
+        flavors = (
+            db.query(
+                service_model.Service.flavor,
+                func.count(service_model.Service.flavor),
+            )
+            .filter(service_model.Service.jupyterhub_username == jupyterhub_name)
+            .group_by(service_model.Service.flavor)
+        )
+        undefined_max = await self.get_flavors_undefined_max(jupyterhub_name)
+        ret = {"_undefined": {"max": undefined_max, "current": 0}}
+        # Add flavors that are already running
+        for flavor in flavors:
+            if flavor[0] in configured_flavors.keys():
+                ret[flavor[0]] = {
+                    "max": configured_flavors[flavor[0]],
+                    "current": flavor[1],
+                }
+            else:
+                ret["_undefined"]["current"] += flavor[1]
+        # Add flavors which are not running yet
+        for flavor_name, flavor_max in configured_flavors.items():
+            if flavor_name not in ret.keys():
+                ret[flavor_name] = {"max": flavor_max, "current": 0}
+        return ret
+
+    async def _outpostspawner_send_flavor_update(
+        self, db, service_name, jupyterhub_name, flavor_update_url
+    ):
+        try:
+            token = await self.get_flavors_update_token(jupyterhub_name)
+        except:
+            token = False
+            self.log.exception(
+                f"{service_name} - Could not receive auth token for {jupyterhub_name} to send flavor updates."
+            )
+        if not (token and flavor_update_url):
+            self.log.info(
+                f"{service_name} - Do not send flavor update to {jupyterhub_name}"
+            )
+            return
+        request_header = {
+            "Authorization": f"token {token}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        body = await self._outpostspawner_get_flavor_values(db, jupyterhub_name)
+
+        req = HTTPRequest(
+            url=flavor_update_url,
+            method="POST",
+            headers=request_header,
+            body=json.dumps(body),
+            **self.get_request_kwargs(),
+        )
+        try:
+            await self.http_client.fetch(req)
+        except:
+            self.log.exception(
+                f"{service_name} - Could not send flavor update to {flavor_update_url}"
+            )
+
     # Create a DummySpawner object.
     async def _new_spawner(
         wrapper,
@@ -376,77 +445,14 @@ class JupyterHubOutpost(Application):
             spawn_future = None
             name = service_name
             log = wrapper.log
-            http_client = Any
-
-            @default("http_client")
-            def _default_http_client(self):
-                return AsyncHTTPClient(
-                    force_instance=True, defaults=dict(validate_cert=False)
-                )
-
-            async def _outpostspawner_get_flavor_values(self, db):
-                configured_flavors = await wrapper.get_flavors(self.jupyterhub_name)
-                flavors = (
-                    db.query(
-                        service_model.Service.flavor,
-                        func.count(service_model.Service.flavor),
-                    )
-                    .filter(
-                        service_model.Service.jupyterhub_username
-                        == self.jupyterhub_name
-                    )
-                    .group_by(service_model.Service.flavor)
-                )
-                undefined_max = await wrapper.get_flavors_undefined_max(
-                    self.jupyterhub_name
-                )
-                ret = {"_undefined": {"max": undefined_max, "current": 0}}
-                for flavor in flavors:
-                    if flavor[0] in configured_flavors.keys():
-                        ret[flavor[0]] = {
-                            "max": configured_flavors[flavor[0]],
-                            "current": flavor[1],
-                        }
-                    else:
-                        ret["_undefined"]["current"] += flavor[1]
-                return ret
-
-            async def _outpostspawner_send_flavor_update(self, db):
-                flavor_update_url = self.env.get("JUPYTERHUB_FLAVORS_UPDATE_URL", "")
-                token = await wrapper.get_flavors_update_token(self.jupyterhub_name)
-                if not (token and flavor_update_url):
-                    self.log.info(
-                        f"{self._log_name} - Do not send flavor update to {self.jupyterhub_name}"
-                    )
-                    return
-                request_header = {
-                    "Authorization": f"token {token}",
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                }
-                body = await self._outpostspawner_get_flavor_values(db)
-
-                req = HTTPRequest(
-                    url=flavor_update_url,
-                    method="POST",
-                    headers=request_header,
-                    body=json.dumps(body),
-                    **wrapper.get_request_kwargs(),
-                )
-                try:
-                    await self.http_client.fetch(req)
-                except:
-                    self.log.exception(
-                        f"{self._log_name} - Could not send flavor update to {flavor_update_url}"
-                    )
 
             async def _outpostspawner_send_event(self, event):
                 request_header = {
-                    "Authorization": f"token {self.env.get('JUPYTERHUB_API_TOKEN')}",
+                    "Authorization": f"token {self.get_env().get('JUPYTERHUB_API_TOKEN')}",
                     "Content-Type": "application/json",
                     "Accept": "application/json",
                 }
-                event_url = self.env.get("JUPYTERHUB_EVENTS_URL", "")
+                event_url = self.get_env().get("JUPYTERHUB_EVENTS_URL", "")
                 req = HTTPRequest(
                     url=event_url,
                     method="POST",
@@ -455,7 +461,7 @@ class JupyterHubOutpost(Application):
                     **wrapper.get_request_kwargs(),
                 )
                 try:
-                    await self.http_client.fetch(req)
+                    await wrapper.http_client.fetch(req)
                 except:
                     self.log.exception(
                         f"{self._log_name} - Could not send event to {event_url} for {self._log_name}: {event.get('html_message', event.get('message', ''))}"
@@ -483,38 +489,13 @@ class JupyterHubOutpost(Application):
                 wrapper.update_logging()
                 self.log.info(f"{self._log_name} - Start service")
 
-                # check if the chosen flavor is still available
-                flavor = self.user_options.get("flavor", "_undefined")
-                current_flavor_values = await self._outpostspawner_get_flavor_values(db)
-                if flavor in current_flavor_values.keys():
-                    current_flavor_value = current_flavor_values.get(flavor, {}).get(
-                        "current", 0
-                    )
-                else:
-                    current_flavor_value = current_flavor_values.get(
-                        "_undefined", {}
-                    ).get("current", 0)
-                undefined_max = await wrapper.get_flavors_undefined_max(
-                    self.jupyterhub_name
-                )
-                max_flavor_value = current_flavor_values.get(flavor, {}).get(
-                    "max", undefined_max
-                )
-                if current_flavor_value > max_flavor_value and max_flavor_value != -1:
-                    # max = -1 -> infinite
-                    # This service is already stored in the database. If current == max
-                    # this service is the last one that's allowed.
-                    raise Exception(
-                        f"{self._log_name} - Start with {flavor} not allowed. Maximum ({max_flavor_value}) already reached."
-                    )
-
                 self._spawn_future = asyncio.ensure_future(
                     self._outpostspawner_db_start_call(db)
                 )
 
                 forward_future = None
                 send_events = await wrapper.get_send_events(self.jupyterhub_name)
-                if self.env.get("JUPYTERHUB_EVENTS_URL", "") and send_events:
+                if self.get_env().get("JUPYTERHUB_EVENTS_URL", "") and send_events:
                     forward_future = self._outpostspawner_forward_events()
 
                 await asyncio.wait([self._spawn_future])

@@ -20,6 +20,7 @@ headers_auth_wrong_pw = {"Authorization": f"Basic {auth_user_wrong_pw}"}
 auth_state_required = "./tests/test_routes/auth_state_required.py"
 simple_direct = "./tests/test_routes/simple_direct.py"
 simple_flavors_max_0 = "./tests/test_routes/simple_flavors_max_0.py"
+simple_flavors_auth_exception = "./tests/test_routes/simple_flavors_exception.py"
 simple_override = "./tests/test_routes/simple_override.py"
 simple_direct_sanitized = "./tests/test_routes/simple_direct_sanitized.py"
 
@@ -322,7 +323,7 @@ async def test_flavor_max_0(client, db_session):
     assert response.status_code == 419
     assert (
         response.json().get("args")[0]
-        == "user1:user-servername - Start with _undefined not allowed. Maximum (0) already reached."
+        == f"user-servername - Start with _undefined for {jupyterhub_name} not allowed. Maximum (0) already reached."
     )
 
 
@@ -389,9 +390,9 @@ async def test_flavor_hub_specific_allowance(client, db_session, monkeypatch):
     i = 0
     for service_d in service_data[:5]:
         response = client.post("/services", json=service_d, headers=headers_auth_user)
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
         if i < 2:
-            # Should not be called when mock_url and token is set
+            # Should be called when mock_url and token is set
             assert mock_args[0].headers["Authorization"] == "token secret1"
             assert mock_args[0].url == "mock_url"
             i += 1
@@ -405,11 +406,11 @@ async def test_flavor_hub_specific_allowance(client, db_session, monkeypatch):
     assert response.status_code == 419
     assert (
         response.json().get("args")[0]
-        == f"user1:{service_data[5]['name']} - Start with typea not allowed. Maximum (5) already reached."
+        == f"{service_data[5]['name']} - Start with typea for {jupyterhub_name} not allowed. Maximum (5) already reached."
     )
-    assert mock_args[0].headers["Authorization"] == "token secret1"
-    assert mock_args[0].url == "mock_url"
-    i += 1
+    # assert mock_args[0].headers["Authorization"] == "token secret1"
+    # assert mock_args[0].url == "mock_url"
+    # i += 1
     assert calls == i
 
     # Stop one previously started of typea
@@ -443,13 +444,13 @@ async def test_flavor_hub_specific_allowance(client, db_session, monkeypatch):
         "/services", json=service_data[1], headers=headers_auth_user2
     )
     assert response.status_code == 419
-    assert mock_args[0].headers["Authorization"] == "token secret2"
-    assert mock_args[0].url == "mock_url"
-    i += 1
+    # assert mock_args[0].headers["Authorization"] == "token secret2"
+    # assert mock_args[0].url == "mock_url"
+    # i += 1
     assert calls == i
     assert (
         response.json().get("args")[0]
-        == f"user1:{service_data[1]['name']} - Start with typea not allowed. Maximum (1) already reached."
+        == f"{service_data[1]['name']} - Start with typea for {jupyterhub_name2} not allowed. Maximum (1) already reached."
     )
 
     other_flavor = {
@@ -465,9 +466,40 @@ async def test_flavor_hub_specific_allowance(client, db_session, monkeypatch):
     assert response.status_code == 419
     assert (
         response.json().get("args")[0]
-        == f"user1:{other_flavor['name']} - Start with typec not allowed. Maximum (0) already reached."
+        == f"{other_flavor['name']} - Start with typec for {jupyterhub_name2} not allowed. Maximum (0) already reached."
     )
-    assert mock_args[0].headers["Authorization"] == "token secret2"
-    assert mock_args[0].url == "mock_url"
-    i += 1
+    # assert mock_args[0].headers["Authorization"] == "token secret2"
+    # assert mock_args[0].url == "mock_url"
+    # i += 1
     assert calls == i
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("spawner_config", [simple_flavors_auth_exception])
+async def test_flavor_auth_exception(client, db_session, monkeypatch):
+    mock_args = None
+    calls = 0
+
+    async def mock_fetch(self, *args, **kwargs):
+        nonlocal mock_args
+        nonlocal calls
+        mock_args = args
+        calls += 1
+
+    from tornado.httpclient import AsyncHTTPClient
+
+    monkeypatch.setattr(AsyncHTTPClient, "fetch", mock_fetch)
+
+    service_data = {
+        "name": "user-servername-1",
+        "env": {
+            "JUPYTERHUB_USER": "user1",
+            "JUPYTERHUB_FLAVORS_UPDATE_URL": "mock_url",
+        },
+        "user_options": {"flavor": "typea"},
+    }
+
+    # Start should work, even if the auth token is not configured correctly
+    response = client.post("/services", json=service_data, headers=headers_auth_user)
+    assert response.status_code == 200, response.text
+    assert calls == 0

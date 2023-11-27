@@ -44,7 +44,7 @@ class OutpostUser:
 
 
 class OutpostSpawner:
-    env = {}
+    environment = {}
     jupyterhub_name = ""
 
     def __init__(
@@ -60,9 +60,12 @@ class OutpostSpawner:
         self.hub = config["hub"]
         self.jupyterhub_name = jupyterhub_name
         self.name = service_name
-        self.env = {}
-        for key, value in orig_body.get("env", {}).items():
-            self.env[key] = str(value)
+        self.environment = {}
+        env = orig_body.get("environment", {})
+        if not env:
+            env = orig_body.get("env", {})
+        for key, value in env.items():
+            self.environment[key] = str(value)
         self.user_options = orig_body.get("user_options", {})
 
         if certs:
@@ -95,13 +98,13 @@ class OutpostSpawner:
                 self.internal_trust_bundles[key] = path
         else:
             self.internal_ssl = False
-            self.env.pop("JUPYTERHUB_SSL_CERTFILE", None)
-            self.env.pop("JUPYTERHUB_SSL_KEYFILE", None)
-            self.env.pop("JUPYTERHUB_SSL_CLIENT_CA", None)
+            self.environment.pop("JUPYTERHUB_SSL_CERTFILE", None)
+            self.environment.pop("JUPYTERHUB_SSL_KEYFILE", None)
+            self.environment.pop("JUPYTERHUB_SSL_CLIENT_CA", None)
 
         super().__init__(**config)
 
     def get_env(self):
         env = super().get_env()
-        env.update(self.env)
+        env.update(self.environment)
         return env

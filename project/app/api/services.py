@@ -16,6 +16,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasicCredentials
 from spawner import get_spawner
+from spawner import get_wrapper
 from spawner import remove_spawner
 from sqlalchemy.orm import Session
 from users import verify_user
@@ -49,12 +50,14 @@ async def full_stop_and_remove(
     service.stop_pending = True
     db.add(service)
     db.commit()
+    wrapper = get_wrapper()
     spawner = await get_spawner(
         jupyterhub_name,
         service_name,
         decrypt(service.body),
         get_auth_state(request.headers),
     )
+    flavor_update_url = spawner.get_env().get("JUPYTERHUB_FLAVORS_UPDATE_URL", "")
     spawner.log.info(f"{spawner._log_name} - Stop service and remove it from database.")
     try:
         await spawner._outpostspawner_db_stop(db)
@@ -62,7 +65,9 @@ async def full_stop_and_remove(
         spawner.log.exception(f"{spawner._log_name} - Stop failed.")
     finally:
         try:
-            await spawner._outpostspawner_send_flavor_update(db)
+            await wrapper._outpostspawner_send_flavor_update(
+                db, service_name, jupyterhub_name, flavor_update_url
+            )
         except:
             spawner.log.exception(
                 f"{spawner._log_name} - Could not send flavor update to {jupyterhub_name}."
@@ -143,6 +148,28 @@ async def add_service(
 
     # Add jupyterhub to db
     d["jupyterhub"] = jupyterhub
+
+    # check if the chosen flavor is currently available, before adding the service to
+    # the database
+    wrapper = get_wrapper()
+    flavor = dec_body.get("user_options", {}).get("flavor", "_undefined")
+    current_flavor_values = await wrapper._outpostspawner_get_flavor_values(
+        db, jupyterhub_name
+    )
+    if flavor in current_flavor_values.keys():
+        current_flavor_value = current_flavor_values.get(flavor, {}).get("current", 0)
+    else:
+        current_flavor_value = current_flavor_values.get("_undefined", {}).get(
+            "current", 0
+        )
+    undefined_max = await wrapper.get_flavors_undefined_max(jupyterhub_name)
+    max_flavor_value = current_flavor_values.get(flavor, {}).get("max", undefined_max)
+    if current_flavor_value >= max_flavor_value and max_flavor_value != -1:
+        # max = -1 -> infinite
+        raise Exception(
+            f"{service_name} - Start with {flavor} for {jupyterhub_name} not allowed. Maximum ({max_flavor_value}) already reached."
+        )
+
     new_service = service_model.Service(**d)
     db.add(new_service)
     db.commit()
@@ -158,6 +185,7 @@ async def add_service(
             certs,
             internal_trust_bundles,
         )
+        flavor_update_url = spawner.get_env().get("JUPYTERHUB_FLAVORS_UPDATE_URL", "")
         try:
             ret = await spawner._outpostspawner_db_start(db)
         except Exception as e:
@@ -173,7 +201,9 @@ async def add_service(
             service_.start_pending = False
             db.add(service_)
             db.commit()
-            await spawner._outpostspawner_send_flavor_update(db)
+            await wrapper._outpostspawner_send_flavor_update(
+                db, service.name, jupyterhub_name, flavor_update_url
+            )
             return ret
 
     if request.headers.get("execution-type", "sync") == "async":
