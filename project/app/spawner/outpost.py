@@ -703,17 +703,12 @@ class JupyterHubOutpost(Application):
             self.log.debug("Update logging config")
             with open(self.logging_config_file, "r") as f:
                 ret = yaml.full_load(f)
-            self.logging_config_last_update = last_change
+
             self.logging_config_cache = ret
 
-            if logging.getLevelName(5) != "TRACE":
-                # First call
-                # Remove default StreamHandler
-                if len(self.log.handlers) > 0:
-                    self.log.removeHandler(self.log.handlers[0])
-
+            if self.logging_config_last_update == 0:
                 # In trace will be sensitive information like tokens
-                self.log.addLevelName(5, "TRACE")
+                logging.addLevelName(5, "TRACE")
 
                 def trace_func(self, message, *args, **kws):
                     if self.isEnabledFor(5):
@@ -721,17 +716,25 @@ class JupyterHubOutpost(Application):
                         self._log(5, message, args, **kws)
 
                 logging.Logger.trace = trace_func
-                self.log.setLevel(5)
+
+                for _log in [outpost_log, self.log]:
+                    # First call
+                    # Remove default StreamHandler
+                    if len(_log.handlers) > 0:
+                        _log.removeHandler(_log.handlers[0])
+
+                    _log.setLevel(5)
+
+            self.logging_config_last_update = last_change
 
             for _log in [outpost_log, self.log]:
                 logger_handlers = _log.handlers
                 handler_names = [x.name for x in logger_handlers]
 
-                for handler_name, handler_config in self.logging_config.items():
+                for handler_name, handler_config in self.logging_config_cache.items():
                     if (
-                        handler_config.get("enabled", False)
-                        and handler_name in handler_names
-                    ):
+                        not handler_config.get("enabled", False)
+                    ) and handler_name in handler_names:
                         # Handler was disabled, remove it
                         _log.debug(f"Logging handler remove ({handler_name}) ... ")
                         _log.handlers = [
