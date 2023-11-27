@@ -25,6 +25,25 @@ simple_override = "./tests/test_routes/simple_override.py"
 simple_direct_sanitized = "./tests/test_routes/simple_direct_sanitized.py"
 
 
+@pytest.mark.parametrize("spawner_config", [simple_flavors_max_0])
+def test_flavors_endpoint(client):
+    response = client.get("/flavors", headers=headers_auth_user)
+    assert response.status_code == 200
+    assert response.json() == {
+        "_undefined": {"current": 0, "max": 0},
+        "typea": {"current": 0, "max": 5},
+        "typeb": {"current": 0, "max": 5},
+    }
+
+    response = client.get("/flavors", headers=headers_auth_user2)
+    assert response.status_code == 200
+    assert response.json() == {
+        "_undefined": {"current": 0, "max": 0},
+        "typea": {"current": 0, "max": 1},
+        "typeb": {"current": 0, "max": 1},
+    }
+
+
 @pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_create_get(client):
     service_name = "user-servername"

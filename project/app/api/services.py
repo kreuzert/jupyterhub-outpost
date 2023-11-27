@@ -82,6 +82,20 @@ async def full_stop_and_remove(
             )
 
 
+@router.get("/flavors/")
+@catch_exception
+async def list_flavors(
+    jupyterhub_name: Annotated[HTTPBasicCredentials, Depends(verify_user)],
+    db: Session = Depends(get_db),
+) -> dict:
+    log.debug(f"List flavors for {jupyterhub_name}")
+    wrapper = get_wrapper()
+    current_flavor_values = await wrapper._outpostspawner_get_flavor_values(
+        db, jupyterhub_name
+    )
+    return current_flavor_values
+
+
 @router.get("/services/")
 @catch_exception
 async def list_services(
