@@ -30,17 +30,51 @@ def test_flavors_endpoint(client):
     response = client.get("/flavors", headers=headers_auth_user)
     assert response.status_code == 200
     assert response.json() == {
-        "_undefined": {"current": 0, "max": 0},
-        "typea": {"current": 0, "max": 5},
-        "typeb": {"current": 0, "max": 5},
+        "_undefined": {
+            "current": 0,
+            "max": 0,
+            "display_name": "default flavor",
+            "weight": 1,
+        },
+        "typea": {
+            "max": 5,
+            "weight": 10,
+            "current": 0,
+            "display_name": "2GB RAM, 1VCPU, 120 hours",
+            "description": "JupyterLab will run for max 120 hours with 2GB RAM and 1VCPU.",
+        },
+        "typeb": {
+            "max": 5,
+            "weight": 9,
+            "current": 0,
+            "display_name": "4GB RAM, 1VCPUs, 12 hours",
+            "description": "JupyterLab will run for max 12 hours with 4GB RAM and 1VCPUs.",
+        },
     }
 
     response = client.get("/flavors", headers=headers_auth_user2)
     assert response.status_code == 200
     assert response.json() == {
-        "_undefined": {"current": 0, "max": 0},
-        "typea": {"current": 0, "max": 1},
-        "typeb": {"current": 0, "max": 1},
+        "_undefined": {
+            "current": 0,
+            "max": 0,
+            "display_name": "default flavor",
+            "weight": 1,
+        },
+        "typea": {
+            "max": 1,
+            "weight": 10,
+            "current": 0,
+            "display_name": "2GB RAM, 1VCPU, 120 hours",
+            "description": "JupyterLab will run for max 120 hours with 2GB RAM and 1VCPU.",
+        },
+        "typeb": {
+            "max": 1,
+            "weight": 9,
+            "current": 0,
+            "display_name": "4GB RAM, 1VCPUs, 12 hours",
+            "description": "JupyterLab will run for max 12 hours with 4GB RAM and 1VCPUs.",
+        },
     }
 
 

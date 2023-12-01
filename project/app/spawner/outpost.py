@@ -367,20 +367,26 @@ class JupyterHubOutpost(Application):
             .group_by(service_model.Service.flavor)
         )
         undefined_max = await self.get_flavors_undefined_max(jupyterhub_name)
-        ret = {"_undefined": {"max": undefined_max, "current": 0}}
+        ret = {
+            "_undefined": {
+                "max": undefined_max,
+                "current": 0,
+                "display_name": "default flavor",
+                "weight": 1,
+            }
+        }
         # Add flavors that are already running
         for flavor in flavors:
             if flavor[0] in configured_flavors.keys():
-                ret[flavor[0]] = {
-                    "max": configured_flavors[flavor[0]],
-                    "current": flavor[1],
-                }
+                ret[flavor[0]] = configured_flavors[flavor[0]]
+                ret[flavor[0]]["current"] = flavor[1]
             else:
                 ret["_undefined"]["current"] += flavor[1]
         # Add flavors which are not running yet
-        for flavor_name, flavor_max in configured_flavors.items():
+        for flavor_name, flavor_description in configured_flavors.items():
             if flavor_name not in ret.keys():
-                ret[flavor_name] = {"max": flavor_max, "current": 0}
+                ret[flavor_name] = flavor_description
+                ret[flavor_name]["current"] = 0
         return ret
 
     async def _outpostspawner_send_flavor_update(
