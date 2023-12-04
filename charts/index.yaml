@@ -2,8 +2,25 @@ apiVersion: v1
 entries:
   jupyterhub-outpost:
   - apiVersion: v2
+    appVersion: 0.8.0
+    created: "2023-12-04T20:02:47.376186778Z"
+    description: Start single-user server via JupyterHub on multiple systems
+    digest: d3ac72e64ca368c96f9bf717de53e65ef223f05ac28a0fa4e2dad16cc31c3b3a
+    keywords:
+    - jupyter
+    - jupyterhub
+    - python
+    - fastapi
+    name: jupyterhub-outpost
+    sources:
+    - https://github.com/kreuzert/jupyterhub-outpost
+    type: application
+    urls:
+    - jupyterhub-outpost-0.8.0.tgz
+    version: 0.8.0
+  - apiVersion: v2
     appVersion: 0.7.6
-    created: "2023-12-04T14:38:26.775165688Z"
+    created: "2023-12-04T20:02:47.375679004Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: a47a1e90b45cffc6f29c67c612891c7b88f7846db4e12878e47f1d7e1ca94000
     keywords:
@@ -20,7 +37,7 @@ entries:
     version: 0.7.6
   - apiVersion: v2
     appVersion: 0.7.5
-    created: "2023-12-04T14:38:26.774442681Z"
+    created: "2023-12-04T20:02:47.37517944Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: ff70197332d34235ff5a37f46246a195811d4b7799f3b6c3b05486e9e7a4fb33
     keywords:
@@ -37,7 +54,7 @@ entries:
     version: 0.7.5
   - apiVersion: v2
     appVersion: 0.7.4
-    created: "2023-12-04T14:38:26.773894242Z"
+    created: "2023-12-04T20:02:47.374544436Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: d87a7cc1d08191cc2eea43d4633d89ad346342f653b9171f7e507bd60696a718
     keywords:
@@ -54,7 +71,7 @@ entries:
     version: 0.7.4
   - apiVersion: v2
     appVersion: 0.7.3
-    created: "2023-12-04T14:38:26.773260892Z"
+    created: "2023-12-04T20:02:47.374039552Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 998809ace25a55d0e402b571fa3fc055343a0a7327694a7b745bc964be514722
     keywords:
@@ -71,7 +88,7 @@ entries:
     version: 0.7.3
   - apiVersion: v2
     appVersion: 0.7.2
-    created: "2023-12-04T14:38:26.772696063Z"
+    created: "2023-12-04T20:02:47.373532019Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: c4f922cd887c379398c51c1250e55ea539ce528c1ea23ee5c684980e5def4e9f
     keywords:
@@ -88,7 +105,7 @@ entries:
     version: 0.7.2
   - apiVersion: v2
     appVersion: 0.7.1
-    created: "2023-12-04T14:38:26.772063242Z"
+    created: "2023-12-04T20:02:47.372929566Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: e025f18cf5dd45d75c9d573278c20b442845cf7ab1551c3979a2c8e01469605e
     keywords:
@@ -105,7 +122,7 @@ entries:
     version: 0.7.1
   - apiVersion: v2
     appVersion: 0.7.0
-    created: "2023-12-04T14:38:26.771421698Z"
+    created: "2023-12-04T20:02:47.372400432Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: f7c4fd24eb454ce4ada350df2b014feb3d96cd7e96dab64f2005f45efee5c070
     keywords:
@@ -122,7 +139,7 @@ entries:
     version: 0.7.0
   - apiVersion: v2
     appVersion: 0.6.1
-    created: "2023-12-04T14:38:26.770803645Z"
+    created: "2023-12-04T20:02:47.371847509Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: ba9cefe388303b547cbf7bc1aa62a46f7a8c405b72757848cd19fde54baedf24
     keywords:
@@ -139,7 +156,7 @@ entries:
     version: 0.6.1
   - apiVersion: v2
     appVersion: 0.6.0
-    created: "2023-12-04T14:38:26.770121011Z"
+    created: "2023-12-04T20:02:47.371276874Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 1bd2cd93b1b50eb3ead6aa4b6700bb9d5a07060b477909783412e7cd0105f732
     keywords:
@@ -156,7 +173,7 @@ entries:
     version: 0.6.0
   - apiVersion: v2
     appVersion: 0.5.1
-    created: "2023-12-04T14:38:26.769474386Z"
+    created: "2023-12-04T20:02:47.370706981Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 6cb113f887b04e0af11d6afa4f911f7d11c13dc9c8c09c958e7a754441a8c11c
     keywords:
@@ -173,7 +190,7 @@ entries:
     version: 0.5.1
   - apiVersion: v2
     appVersion: 0.5.0
-    created: "2023-12-04T14:38:26.768840192Z"
+    created: "2023-12-04T20:02:47.36777367Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: a8af9833f2da8dd75535afa6a2d0dbaf7f3640a949b9833a638b5f94a4f3bee8
     keywords:
@@ -190,7 +207,7 @@ entries:
     version: 0.5.0
   - apiVersion: v2
     appVersion: 0.4.4
-    created: "2023-12-04T14:38:26.76529194Z"
+    created: "2023-12-04T20:02:47.367180967Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 5441456830af6618aca4f14f511a77997f72ce3660c5c8f8515aee64fb9e75ee
     keywords:
@@ -207,7 +224,7 @@ entries:
     version: 0.4.4
   - apiVersion: v2
     appVersion: 0.4.3
-    created: "2023-12-04T14:38:26.764156544Z"
+    created: "2023-12-04T20:02:47.366618233Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 0cebaa0900fbaaeddbd96c37adf42b67f70c56e3087af6d9a33a7de3422a926d
     keywords:
@@ -224,7 +241,7 @@ entries:
     version: 0.4.3
   - apiVersion: v2
     appVersion: 0.4.2
-    created: "2023-12-04T14:38:26.762381441Z"
+    created: "2023-12-04T20:02:47.36606609Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: a477e153c3fcc0349d62f98b1c60a3bf9383d6507f9c4eec4831efbce419cebe
     keywords:
@@ -241,7 +258,7 @@ entries:
     version: 0.4.2
   - apiVersion: v2
     appVersion: 0.4.1
-    created: "2023-12-04T14:38:26.761777069Z"
+    created: "2023-12-04T20:02:47.365521876Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 47174c2c9e9f3edf4d29c1509b3e21e2d0b3435c092c69950ee51a5d280748bf
     keywords:
@@ -258,7 +275,7 @@ entries:
     version: 0.4.1
   - apiVersion: v2
     appVersion: 0.4.0
-    created: "2023-12-04T14:38:26.761211817Z"
+    created: "2023-12-04T20:02:47.364978752Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 6468148eb3c22f9260c9220844bf14850d9a1284036093ca639f1c124334bf01
     keywords:
@@ -275,7 +292,7 @@ entries:
     version: 0.4.0
   - apiVersion: v2
     appVersion: 0.4.0-dev.1
-    created: "2023-12-04T14:38:26.760670461Z"
+    created: "2023-12-04T20:02:47.364457699Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 809849b97dd0b9231582df7e9bbbb4eae2d077ea9bb5122cbef2f71833498b2f
     keywords:
@@ -292,7 +309,7 @@ entries:
     version: 0.4.0-dev.1
   - apiVersion: v2
     appVersion: 0.2.5-dev.10
-    created: "2023-12-04T14:38:26.753829413Z"
+    created: "2023-12-04T20:02:47.357978155Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: fa992fe10e6596137f2bb83d98505dbe23f44cbf974c693542919d5a2be7368e
     keywords:
@@ -309,7 +326,7 @@ entries:
     version: 0.2.5-dev.10
   - apiVersion: v2
     appVersion: 0.2.5-dev.9
-    created: "2023-12-04T14:38:26.760095984Z"
+    created: "2023-12-04T20:02:47.363764854Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 0cf3ad796588d1329fd575a2cb01a69b3b56e59173e1c337c2b99ac4b123eb41
     keywords:
@@ -326,7 +343,7 @@ entries:
     version: 0.2.5-dev.9
   - apiVersion: v2
     appVersion: 0.2.5-dev.8
-    created: "2023-12-04T14:38:26.759502597Z"
+    created: "2023-12-04T20:02:47.36322571Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 3acdfbb1a85da1222bd7acb8e41aa947d065e358340c9038bc652c84adb5fb91
     keywords:
@@ -343,7 +360,7 @@ entries:
     version: 0.2.5-dev.8
   - apiVersion: v2
     appVersion: 0.2.5-dev.7
-    created: "2023-12-04T14:38:26.75883018Z"
+    created: "2023-12-04T20:02:47.362629376Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 0b6978555c4e97b974fa7895f07ffeaf2771447179070ce6cea3b93d27e84d29
     keywords:
@@ -360,7 +377,7 @@ entries:
     version: 0.2.5-dev.7
   - apiVersion: v2
     appVersion: 0.2.5-dev.6
-    created: "2023-12-04T14:38:26.758163031Z"
+    created: "2023-12-04T20:02:47.362075513Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: a0807dc1f8423482c93ab07ee5bacfa88a00eec8b49194e677bd686fd4c59951
     keywords:
@@ -377,7 +394,7 @@ entries:
     version: 0.2.5-dev.6
   - apiVersion: v2
     appVersion: 0.2.5-dev.5
-    created: "2023-12-04T14:38:26.757233962Z"
+    created: "2023-12-04T20:02:47.361500099Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 847445acafc28ae63e03569659b762dfc6c91ab952106168183be2e92ed70979
     keywords:
@@ -394,7 +411,7 @@ entries:
     version: 0.2.5-dev.5
   - apiVersion: v2
     appVersion: 0.2.5-dev.4
-    created: "2023-12-04T14:38:26.756590069Z"
+    created: "2023-12-04T20:02:47.360929085Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 6292c3bcc4971e29dc4412f0a7a0c70565578ec41750e6cd1ec950e2e26dd1f1
     keywords:
@@ -411,7 +428,7 @@ entries:
     version: 0.2.5-dev.4
   - apiVersion: v2
     appVersion: 0.2.5-dev.3
-    created: "2023-12-04T14:38:26.755958833Z"
+    created: "2023-12-04T20:02:47.36027322Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: ca4de748dc5e194416371457adbc10412598e32c143dd433c7c9379ab6da3cc7
     keywords:
@@ -428,7 +445,7 @@ entries:
     version: 0.2.5-dev.3
   - apiVersion: v2
     appVersion: 0.2.5-dev.2
-    created: "2023-12-04T14:38:26.75442871Z"
+    created: "2023-12-04T20:02:47.358504459Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: e6690cf270fc9e82a919e121b84a92efcdd8fc10b368d6a4ee92f7fefa5e0513
     keywords:
@@ -445,7 +462,7 @@ entries:
     version: 0.2.5-dev.2
   - apiVersion: v2
     appVersion: 0.2.5-dev.1
-    created: "2023-12-04T14:38:26.753146147Z"
+    created: "2023-12-04T20:02:47.357489792Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 09942cb40f62a2f26f56d9bb09eba85968db9f3db19290b972c5dd753426bece
     keywords:
@@ -462,7 +479,7 @@ entries:
     version: 0.2.5-dev.1
   - apiVersion: v2
     appVersion: 0.2.4
-    created: "2023-12-04T14:38:26.752089526Z"
+    created: "2023-12-04T20:02:47.356965899Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 83f9163585928839547da90ead32cc97d82a5850eedc012a42bfcc5e3dfbf49c
     keywords:
@@ -479,7 +496,7 @@ entries:
     version: 0.2.4
   - apiVersion: v2
     appVersion: 0.2.3
-    created: "2023-12-04T14:38:26.751177341Z"
+    created: "2023-12-04T20:02:47.356420394Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 15231bf52c347886ce3e3fdf59ef930f1e3305c18b30e52e7df4ef3099906fe3
     keywords:
@@ -496,7 +513,7 @@ entries:
     version: 0.2.3
   - apiVersion: v2
     appVersion: 0.2.2
-    created: "2023-12-04T14:38:26.747406424Z"
+    created: "2023-12-04T20:02:47.355886362Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 8037f89f1bae5ebd209a004e7c5076dfad44e870e788e523adad4790b16dd7bd
     keywords:
@@ -513,7 +530,7 @@ entries:
     version: 0.2.2
   - apiVersion: v2
     appVersion: 0.2.1
-    created: "2023-12-04T14:38:26.745195204Z"
+    created: "2023-12-04T20:02:47.355368218Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 00a78e32db086069cb17e4badf220fa7177429fa96ec370c4e611887ff0c80fb
     keywords:
@@ -530,7 +547,7 @@ entries:
     version: 0.2.1
   - apiVersion: v2
     appVersion: 0.2.0
-    created: "2023-12-04T14:38:26.744482736Z"
+    created: "2023-12-04T20:02:47.354795063Z"
     description: Start single-user server via JupyterHub on multiple systems
     digest: 15db511d5fbc6182f9c0d9b19835d817fdc270082cd0d8a4849c9df673c2bd81
     keywords:
@@ -545,4 +562,4 @@ entries:
     urls:
     - jupyterhub-outpost-0.2.0.tgz
     version: 0.2.0
-generated: "2023-12-04T14:38:26.743568809Z"
+generated: "2023-12-04T20:02:47.354012879Z"
