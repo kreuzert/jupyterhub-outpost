@@ -140,7 +140,7 @@ raw_env = [
 pidfile = "/home/jhuboutpost/gunicorn.pid"
 umask = 0
 user = 1000
-group = 100
+group = 1000
 tmp_upload_dir = None
 chdir = "/home/jhuboutpost/app"
 

@@ -4,7 +4,7 @@ ENV USERNAME=jhuboutpost
 ENV HOME=/home/${USERNAME}
 ENV APP_HOME=/home/${USERNAME}/app
 
-RUN adduser --uid 1000 --ingroup users --gecos "" --disabled-password ${USERNAME}
+RUN adduser --uid 1000 --gid 1000 --gecos "" --disabled-password ${USERNAME}
 RUN mkdir -p ${APP_HOME} && mkdir -p ${HOME}/.ssh
 
 WORKDIR ${APP_HOME}
