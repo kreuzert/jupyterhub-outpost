@@ -14,12 +14,14 @@ async def flavors(jupyterhub_name):
                 "weight": 10,
                 "display_name": "2GB RAM, 1VCPU, 120 hours",
                 "description": "JupyterLab will run for max 120 hours with 2GB RAM and 1VCPU.",
+                "runtime": {"hours": 2},
             },
             "typeb": {
                 "max": 5,
                 "weight": 9,
                 "display_name": "4GB RAM, 1VCPUs, 12 hours",
                 "description": "JupyterLab will run for max 12 hours with 4GB RAM and 1VCPUs.",
+                "runtime": {"hours": 2},
             },
         }
     else:
@@ -35,6 +37,7 @@ async def flavors(jupyterhub_name):
                 "weight": 9,
                 "display_name": "4GB RAM, 1VCPUs, 12 hours",
                 "description": "JupyterLab will run for max 12 hours with 4GB RAM and 1VCPUs.",
+                "runtime": {"hours": 2},
             },
         }
 

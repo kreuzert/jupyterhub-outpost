@@ -1,3 +1,6 @@
+from datetime import datetime
+from datetime import timedelta
+
 import pytest
 from app.database.schemas import decrypt
 from app.database.schemas import encrypt
@@ -42,6 +45,7 @@ def test_flavors_endpoint(client):
             "current": 0,
             "display_name": "2GB RAM, 1VCPU, 120 hours",
             "description": "JupyterLab will run for max 120 hours with 2GB RAM and 1VCPU.",
+            "runtime": {"hours": 2},
         },
         "typeb": {
             "max": 5,
@@ -49,6 +53,7 @@ def test_flavors_endpoint(client):
             "current": 0,
             "display_name": "4GB RAM, 1VCPUs, 12 hours",
             "description": "JupyterLab will run for max 12 hours with 4GB RAM and 1VCPUs.",
+            "runtime": {"hours": 2},
         },
     }
 
@@ -74,6 +79,7 @@ def test_flavors_endpoint(client):
             "current": 0,
             "display_name": "4GB RAM, 1VCPUs, 12 hours",
             "description": "JupyterLab will run for max 12 hours with 4GB RAM and 1VCPUs.",
+            "runtime": {"hours": 2},
         },
     }
 
@@ -378,6 +384,37 @@ async def test_flavor_max_0(client, db_session):
         response.json().get("args")[0]
         == f"user-servername - Start with _undefined for {jupyterhub_name} not allowed. Maximum (0) already reached."
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("spawner_config", [simple_flavors_max_0])
+async def test_flavor_runtime_in_enddate(client, db_session):
+    service_name = "user-servername"
+    service_data = {
+        "name": service_name,
+        "env": {"JUPYTERHUB_USER": "user1"},
+        "user_options": {"flavor": "typea"},
+    }
+    response = client.post("/services", json=service_data, headers=headers_auth_user)
+    assert response.status_code == 200
+    svc = get_service(jupyterhub_name, service_name, db_session)
+    assert datetime.now() + timedelta(minutes=120) > svc.end_date
+    assert datetime.now() + timedelta(minutes=119) < svc.end_date
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("spawner_config", [simple_flavors_max_0])
+async def test_flavor_runtime_no_enddate(client, db_session):
+    service_name = "user-servername"
+    service_data = {
+        "name": service_name,
+        "env": {"JUPYTERHUB_USER": "user1"},
+        "user_options": {"flavor": "typea"},
+    }
+    response = client.post("/services", json=service_data, headers=headers_auth_user2)
+    assert response.status_code == 200
+    svc = get_service(jupyterhub_name2, service_name, db_session)
+    assert datetime.max == svc.end_date
 
 
 @pytest.mark.asyncio

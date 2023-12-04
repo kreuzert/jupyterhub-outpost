@@ -76,6 +76,46 @@ async def recreate_tunnels():
         db.close()
 
 
+background_task = []
+
+import os
+from datetime import datetime
+from database.utils import get_services_all
+import asyncio
+from api.services import full_stop_and_remove
+from database.utils import get_db
+
+
+class BackgroundRunner:
+    def __init__(self):
+        logger_name = os.environ.get("LOGGER_NAME", "JupyterHubOutpost")
+        self.log = logging.getLogger(logger_name)
+
+    async def check_enddates(self):
+        while True:
+            self.log.info("Periodic check for ended services")
+            now = datetime.now()
+            services = get_services_all(jupyterhub_name=None, db=next(get_db()))
+            for service in services:
+                if service["end_date"] > now:
+                    try:
+                        self.log.info(f"Stop and remove {service['name']}")
+                        await full_stop_and_remove(
+                            service["jupyterhub"], service["name"]
+                        )
+                    except:
+                        self.log.exception("Could not stop and remove service")
+            await asyncio.sleep(30)
+
+
+runner = BackgroundRunner()
+
+
+@app.on_event("startup")
+async def app_startup():
+    asyncio.create_task(runner.check_enddates())
+
+
 # @app.on_event("shutdown")
 # async def shutdown_event():
 #     log.info("shutting down")

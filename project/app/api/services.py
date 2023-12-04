@@ -44,18 +44,23 @@ def get_auth_state(headers):
 
 
 async def full_stop_and_remove(
-    jupyterhub_name, service_name, db, request, delete=False
+    jupyterhub_name, service_name, db=Depends(get_db), request=None, delete=False
 ):
     service = get_service(jupyterhub_name, service_name, db)
     service.stop_pending = True
     db.add(service)
     db.commit()
     wrapper = get_wrapper()
+    if request:
+        auth_state = get_auth_state(request.headers)
+    else:
+        auth_state = {}
+
     spawner = await get_spawner(
         jupyterhub_name,
         service_name,
         decrypt(service.body),
-        get_auth_state(request.headers),
+        auth_state,
     )
     flavor_update_url = spawner.get_env().get("JUPYTERHUB_FLAVORS_UPDATE_URL", "")
     spawner.log.info(f"{spawner._log_name} - Stop service and remove it from database.")

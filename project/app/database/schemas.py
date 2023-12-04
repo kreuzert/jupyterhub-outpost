@@ -41,8 +41,9 @@ class JupyterHub(BaseModel):
 class Service(BaseModel):
     name: str
     jupyterhub: JupyterHub | None = None
-    last_update: datetime | None = datetime.utcnow()
-    start_date: datetime | None = datetime.utcnow()
+    last_update: datetime | None = datetime.now()
+    start_date: datetime | None = datetime.now()
+    end_date: datetime | None = datetime.max
     start_pending: bool | None = True
     stop_pending: bool | None = False
     body: bytes

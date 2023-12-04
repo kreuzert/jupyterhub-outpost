@@ -7,6 +7,7 @@ import os
 import socket
 import sys
 from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 
 import yaml
@@ -535,6 +536,11 @@ class JupyterHubOutpost(Application):
                     self.log.exception(f"{self._log_name} - Start failed")
                     raise
                 service = get_service(jupyterhub_name, self.name, db)
+                flavors = await wrapper.get_flavors(jupyterhub_name)
+                if service.flavor in flavors.keys():
+                    runtime = flavors[service.flavor].get("runtime", False)
+                    if runtime:
+                        service.end_date = datetime.now() + timedelta(**runtime)
                 service.state = encrypt(self.get_state())
                 service.start_response = encrypt({"service": ret})
                 db.commit()

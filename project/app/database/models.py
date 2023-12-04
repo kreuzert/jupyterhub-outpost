@@ -30,6 +30,7 @@ class Service(Base):
     jupyterhub_username: Mapped[str] = mapped_column(ForeignKey("jupyterhub.name"))
     last_update = Column(DateTime(timezone=True), default=datetime.now())
     start_date = Column(DateTime(timezone=True), default=datetime.now())
+    end_date = Column(DateTime(timezone=True), default=datetime.max)
     start_pending = Column(Boolean, default=True)
     stop_pending = Column(Boolean, default=False)
     body = Column(LargeBinary, default=None)

@@ -58,19 +58,24 @@ def get_service(
     return service
 
 
-def get_services_all(
-    jupyterhub_name, db: Session = Depends(get_db)
-) -> service_schema.Service:
-    jupyterhub = get_or_create_jupyterhub(jupyterhub_name, db)
-    services = (
-        db.query(service_model.Service)
-        .filter(service_model.Service.jupyterhub == jupyterhub)
-        .all()
-    )
+def get_services_all(jupyterhub_name=None, db=None) -> service_schema.Service:
+    if not db:
+        return []
+    if jupyterhub_name:
+        jupyterhub = get_or_create_jupyterhub(jupyterhub_name, db)
+        services = (
+            db.query(service_model.Service)
+            .filter(service_model.Service.jupyterhub == jupyterhub)
+            .all()
+        )
+    else:
+        services = db.query(service_model.Service).all()
     service_list = [
         {
             "name": x.name,
             "start_date": x.start_date,
+            "end_date": x.end_date,
+            "jupyterhub": x.jupyterhub_username,
             "last_update": x.last_update,
             "start_pending": x.start_pending,
             "stop_pending": x.stop_pending,
