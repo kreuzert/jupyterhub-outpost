@@ -40,16 +40,16 @@ class JupyterHub(BaseModel):
 
 class Service(BaseModel):
     name: str
-    jupyterhub: JupyterHub
-    last_update: datetime
-    start_date: datetime
-    end_date: datetime
-    start_pending: bool
-    stop_pending: bool
+    jupyterhub: JupyterHub | None = None
+    last_update: datetime | None = datetime.now()
+    start_date: datetime | None = datetime.now()
+    end_date: datetime | None = datetime.max
+    start_pending: bool | None = True
+    stop_pending: bool | None = False
     body: bytes
     state: bytes
     start_response: bytes
-    flavor: str
+    flavor: str | None = "_undefined"
 
     class Config:
         orm_mode = True
