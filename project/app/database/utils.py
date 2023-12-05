@@ -4,7 +4,6 @@ import os
 from database import models as service_model
 from database import schemas as service_schema
 from database import SessionLocal
-from fastapi import Depends
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -22,7 +21,7 @@ def get_db():
 
 
 def get_or_create_jupyterhub(
-    jupyterhub_name: str, db: Session = Depends(get_db)
+    jupyterhub_name: str, db: Session
 ) -> service_schema.JupyterHub:
     jhub = (
         db.query(service_model.JupyterHub)
@@ -43,7 +42,7 @@ def get_or_create_jupyterhub(
 
 
 def get_service(
-    jupyterhub_name, service_name: str, db: Session = Depends(get_db)
+    jupyterhub_name, service_name: str, db: Session
 ) -> service_schema.Service:
     jupyterhub = get_or_create_jupyterhub(jupyterhub_name, db)
     service = (

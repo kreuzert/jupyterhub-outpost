@@ -44,7 +44,7 @@ def get_auth_state(headers):
 
 
 async def full_stop_and_remove(
-    jupyterhub_name, service_name, db=Depends(get_db), request=None, delete=False
+    jupyterhub_name, service_name, db, request=None, delete=False
 ):
     service = get_service(jupyterhub_name, service_name, db)
     service.stop_pending = True

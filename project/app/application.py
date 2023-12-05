@@ -12,7 +12,50 @@ logger_name = os.environ.get("LOGGER_NAME", "JupyterHubOutpost")
 log = logging.getLogger(logger_name)
 
 
+import os
+import multiprocessing
+from datetime import datetime
+from database.utils import get_services_all
+import asyncio
+from api.services import full_stop_and_remove
+from database.utils import get_db
+
+background_tasks = []
+
+
+async def check_enddates():
+    logger_name = os.environ.get("LOGGER_NAME", "JupyterHubOutpost")
+    log = logging.getLogger(logger_name)
+    while True:
+        log.debug("Periodic check for ended services")
+        now = datetime.utcnow()
+        db = next(get_db())
+        services = get_services_all(jupyterhub_name=None, db=db)
+        for service in services:
+            if service["end_date"].replace(tzinfo=None) > now.replace(tzinfo=None):
+                try:
+                    log.info(
+                        f"end_date check - Stop and remove {service['name']} (end_date: {service['end_date']})"
+                    )
+                    await full_stop_and_remove(
+                        service["jupyterhub"], service["name"], db
+                    )
+                except:
+                    log.exception("end_date check - Could not stop and remove service")
+        await asyncio.sleep(30)
+
+
+def sync_check_enddates(loop):
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(check_enddates())
+
+
 def create_application() -> FastAPI:
+    global background_tasks
+    loop = asyncio.get_event_loop()
+    proc = multiprocessing.Process(target=sync_check_enddates, args=(loop,))
+    background_tasks.append(proc)
+    proc.start()
     application = FastAPI()
     application.include_router(services_router)
     application.add_middleware(
@@ -27,6 +70,13 @@ def create_application() -> FastAPI:
 
 
 app = create_application()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    global background_tasks
+    for t in background_tasks:
+        t.terminate()
 
 
 @app.exception_handler(SpawnerException)
