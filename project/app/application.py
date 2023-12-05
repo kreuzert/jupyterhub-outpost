@@ -24,9 +24,6 @@ background_tasks = []
 
 
 async def check_enddates():
-    wrapper = get_wrapper()
-    wrapper.init_logging()
-    wrapper.update_logging()
     while True:
         try:
             log.info("Periodic check for ended services")
@@ -59,6 +56,9 @@ def sync_check_enddates(loop):
 
 
 def create_application() -> FastAPI:
+    wrapper = get_wrapper()
+    wrapper.init_logging()
+    wrapper.update_logging()
     global background_tasks
     loop = asyncio.get_event_loop()
     proc = multiprocessing.Process(target=sync_check_enddates, args=(loop,))
