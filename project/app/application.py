@@ -24,17 +24,23 @@ background_tasks = []
 
 
 async def check_enddates():
-    logger_name = os.environ.get("LOGGER_NAME", "JupyterHubOutpost")
-    log = logging.getLogger(logger_name)
     while True:
-        log.debug("Periodic check for ended services")
+        log.info("Periodic check for ended services")
+        print("Periodic check for ended services")
         now = datetime.utcnow()
         db = next(get_db())
         services = get_services_all(jupyterhub_name=None, db=db)
         for service in services:
+            log.info(f"Compare now: {now.replace(tzinfo=None)}")
+            log.info(f"and     end: {service['end_date'].replace(tzinfo=None)}")
+            print(f"Compare now: {now.replace(tzinfo=None)}")
+            print(f"and     end: {service['end_date'].replace(tzinfo=None)}")
             if service["end_date"].replace(tzinfo=None) > now.replace(tzinfo=None):
                 try:
                     log.info(
+                        f"end_date check - Stop and remove {service['name']} (end_date: {service['end_date']})"
+                    )
+                    print(
                         f"end_date check - Stop and remove {service['name']} (end_date: {service['end_date']})"
                     )
                     await full_stop_and_remove(
