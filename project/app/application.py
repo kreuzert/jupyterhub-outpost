@@ -55,10 +55,12 @@ def sync_check_enddates(loop):
     loop.run_until_complete(check_enddates())
 
 
+wrapper = get_wrapper()
+wrapper.init_logging()
+wrapper.update_logging()
+
+
 def create_application() -> FastAPI:
-    wrapper = get_wrapper()
-    wrapper.init_logging()
-    wrapper.update_logging()
     global background_tasks
     loop = asyncio.get_event_loop()
     proc = multiprocessing.Process(target=sync_check_enddates, args=(loop,))
