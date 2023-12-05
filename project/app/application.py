@@ -1,7 +1,14 @@
+import asyncio
 import logging
+import multiprocessing
 import os
+from datetime import datetime
+from datetime import timezone
 
+from api.services import full_stop_and_remove
 from api.services import router as services_router
+from database.utils import get_db
+from database.utils import get_services_all
 from exceptions import SpawnerException
 from fastapi import FastAPI
 from fastapi import Request
@@ -11,44 +18,34 @@ from fastapi.responses import JSONResponse
 logger_name = os.environ.get("LOGGER_NAME", "JupyterHubOutpost")
 log = logging.getLogger(logger_name)
 
-
-import os
-import multiprocessing
-from datetime import datetime
-from database.utils import get_services_all
-import asyncio
-from api.services import full_stop_and_remove
-from database.utils import get_db
-
 background_tasks = []
 
 
 async def check_enddates():
     while True:
-        log.info("Periodic check for ended services")
-        print("Periodic check for ended services")
-        now = datetime.utcnow()
-        db = next(get_db())
-        services = get_services_all(jupyterhub_name=None, db=db)
-        for service in services:
-            log.info(f"Compare now: {now.replace(tzinfo=None)}")
-            log.info(f"and     end: {service['end_date'].replace(tzinfo=None)}")
-            print(f"Compare now: {now.replace(tzinfo=None)}")
-            print(f"and     end: {service['end_date'].replace(tzinfo=None)}")
-            if service["end_date"].replace(tzinfo=None) > now.replace(tzinfo=None):
-                try:
-                    log.info(
-                        f"end_date check - Stop and remove {service['name']} (end_date: {service['end_date']})"
-                    )
-                    print(
-                        f"end_date check - Stop and remove {service['name']} (end_date: {service['end_date']})"
-                    )
-                    await full_stop_and_remove(
-                        service["jupyterhub"], service["name"], db
-                    )
-                except:
-                    log.exception("end_date check - Could not stop and remove service")
-        await asyncio.sleep(30)
+        try:
+            log.info("Periodic check for ended services")
+            now = datetime.now(timezone.utc)
+            db = next(get_db())
+            services = get_services_all(jupyterhub_name=None, db=db)
+            for service in services:
+                end_date = service["end_date"]
+                if now > end_date:
+                    try:
+                        log.info(
+                            f"end_date check - Stop and remove {service['name']} ({service['jupyterhub']}) (end_date: {end_date})"
+                        )
+                        await full_stop_and_remove(
+                            service["jupyterhub"], service["name"], db
+                        )
+                    except:
+                        log.exception(
+                            "end_date check - Could not stop and remove service"
+                        )
+            await asyncio.sleep(30)
+        except:
+            log.exception("Exception in end date checked.")
+            await asyncio.sleep(30)
 
 
 def sync_check_enddates(loop):

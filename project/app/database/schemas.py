@@ -1,6 +1,7 @@
 import json
 import os
 from datetime import datetime
+from datetime import timezone
 
 from cryptography.fernet import Fernet
 from pydantic import BaseModel
@@ -41,8 +42,8 @@ class JupyterHub(BaseModel):
 class Service(BaseModel):
     name: str
     jupyterhub: JupyterHub | None = None
-    last_update: datetime | None = datetime.now()
-    start_date: datetime | None = datetime.now()
+    last_update: datetime | None = datetime.now(timezone.utc)
+    start_date: datetime | None = datetime.now(timezone.utc)
     end_date: datetime | None = datetime.max
     start_pending: bool | None = True
     stop_pending: bool | None = False
@@ -66,5 +67,8 @@ class Service(BaseModel):
         kwargs["body"] = encrypt(body)
         state = kwargs.pop("state", {})
         kwargs["state"] = encrypt(state)
+        now = datetime.now(timezone.utc)
+        kwargs["start_date"] = now
+        kwargs["last_update"] = now
         kwargs["start_response"] = encrypt({})
         super().__init__(*args, **kwargs)

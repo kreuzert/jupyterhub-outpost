@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import timezone
 from typing import List
 
 from database import Base
@@ -28,8 +29,8 @@ class Service(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name = Column(String)
     jupyterhub_username: Mapped[str] = mapped_column(ForeignKey("jupyterhub.name"))
-    last_update = Column(DateTime(timezone=True), default=datetime.now())
-    start_date = Column(DateTime(timezone=True), default=datetime.now())
+    last_update = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+    start_date = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
     end_date = Column(DateTime(timezone=True), default=datetime.max)
     start_pending = Column(Boolean, default=True)
     stop_pending = Column(Boolean, default=False)
