@@ -14,6 +14,8 @@ from fastapi import FastAPI
 from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from spawner import get_wrapper
+
 
 logger_name = os.environ.get("LOGGER_NAME", "JupyterHubOutpost")
 log = logging.getLogger(logger_name)
@@ -22,6 +24,9 @@ background_tasks = []
 
 
 async def check_enddates():
+    wrapper = get_wrapper()
+    wrapper.init_logging()
+    wrapper.update_logging()
     while True:
         try:
             log.info("Periodic check for ended services")
