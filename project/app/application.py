@@ -38,7 +38,10 @@ async def check_enddates():
                             f"end_date check - Stop and remove {service['name']} ({service['jupyterhub']}) (end_date: {end_date})"
                         )
                         await full_stop_and_remove(
-                            service["jupyterhub"], service["name"], db
+                            service["jupyterhub"],
+                            service["name"],
+                            db,
+                            check_for_start_pending=False,
                         )
                     except:
                         log.exception(
