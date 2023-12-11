@@ -170,6 +170,40 @@ paths:
         200:
           description: Service deleted
           content: {}
+  /flavors:
+    get:
+      summary: List all current flavors and their usages
+      description: |
+        Response may differ for different credentials
+      responses:
+        200:
+          description: Current usage of all flavors for used credentials
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    flavor:
+                      type: object
+                      properties:
+                        max:
+                          type: integer
+                        weight:
+                          type: integer
+                        display_name:
+                          type: string
+                        description:
+                          type: string
+                        runtime:
+                          type: object
+                          properties:
+                            hours:
+                              type: integer
+                          description: Value will be used in pythons datetime.timedelta function
+                        current:
+                          type: integer    
   /ping:
     get:
       summary: Ping

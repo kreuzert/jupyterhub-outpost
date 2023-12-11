@@ -149,3 +149,69 @@ c.JupyterHubOutpost.ssh_recreate_at_start = restart_tunnels
 ```{admonition} Note
 JupyterHub Outpost will use the stored JupyterHub API token to recreate the port-forwarding process. If the API token is no longer valid, this will fail. The single-user server would then be unreachable and must be restarted by the user.
 ```
+
+
+## Flavors - manage resource access for multiple JupyterHubs
+By default, all connected JupyterHubs may use all available resources. It's possible to configure "flavors" for each connected JupyterHub, offering only a part of the available resources.
+  
+For this configuration three attributes are crucial:
+  - flavors
+  - flavors_undefined_max
+  - flavors_update_token
+
+### Flavors
+Configure different flavors, which can be used in Spawner configuration. 
+```python
+async def flavors(jupyterhub_name):
+    if jupyterhub_name == "privileged":
+        return {
+            "typea": {
+                "max": -1,
+                "weight": 10,
+                "display_name": "2GB RAM, 1VCPU, 5 days",
+                "description": "JupyterLab will run for max 5 days with 2GB RAM and 1VCPU.",
+                "runtime": {"days": 5},
+            },
+        }
+    else:
+        return {
+            "typeb": {
+                "max": 10,
+                "weight": 9,
+                "display_name": "4GB RAM, 1VCPUs, 2 hours",
+                "description": "JupyterLab will run for max 2 hours with 4GB RAM and 1VCPUs.",
+                "runtime": {"hours": 2},
+            },
+        }
+c.JupyterHubOutpost.flavors = flavors
+```
+
+The connected JupyterHub "privileged" can start infinite singleuser notebook server. The servers will be stopped after 5 days by the JupyterHub Outpost.  
+Any other connected JupyterHub can start up to 10 singleuser notebook server (all users together for each JupyterHub, not combined for all JupyterHubs).  
+The according RAM / VCPUs restrictions are configured later on in the config file at `c.KubeSpawner.profile_list` or `c.KubeSpawner.[mem_guarantee|mem_limit|cpu_guarantee|cpu_limit]`.  
+JupyterHub OutpostSpawner has to send the chosen flavor in `user_options.flavor` when starting a notebook server.
+
+### Undefined Max
+If JupyterHub OutpostSpawner does not send a flavor in user_options `c.JupyterHubOutpost.flavors_undefined_max` will be used to limit the available resources. This value is also used, if the given flavor is not part of the previously defined `flavors` dict. Default is `-1`, which allows infinite notebook servers for all unknown or unconfigured flavored notebook servers.
+
+```python
+c.JupyterHubOutpost.flavors_undefined_max = 0
+```
+
+This example does not allow any notebook server with a flavor, that's not defined in `c.JupyterHubOutpost.flavors`. Enables full control of the available resources.
+
+### Update Tokens
+The JupyterHub OutpostSpawner offers a APIEndpoint, which receives or offers the current Flavors of all connected JupyterHub Outposts. With this function the Outpost will inform the connected JupyterHubs at each start/stop of a notebook server, about the current flavor situation. The corresponding URL will be given by the OutpostSpawner.
+
+```python
+import os
+async def flavors_update_token(jupyterhub_name):
+    token = os.environ.get(f"FLAVOR_{jupyterhub_name.upper()}_AUTH_TOKEN", "")
+    if not token:
+        raise Exception(f"Flavor auth token for {jupyterhub_name} not configured.")
+    return token
+c.JupyterHubOutpost.flavors_update_token = flavors_update_token
+```
+  
+In case of an exception the update is not send to JupyterHub. This will not interfere with the start of the notebook server.  
+Each connected JupyterHub must provide a service token with scope `custom:outpostflavors:set` to the Outpost administrator.
