@@ -56,7 +56,7 @@ helm repo update
 helm upgrade --install --create-namespace --version <version> --namespace outpost -f outpost_values.yaml outpost jupyterhub-outpost/jupyterhub-outpost
 ```
 
-Afterwards, you have to [update the JupyterHub OutpostSpawner configuration](https://jupyterhub-outpostspawner.readthedocs.io/en/latest/usage/installation.html) with the correct IP address + credentials for this JupyterHub Outpost service.  
+Afterwards, the administrator of each connected JupyterHub has to [update the JupyterHub OutpostSpawner configuration](https://jupyterhub-outpostspawner.readthedocs.io/en/latest/usage/installation.html) with the correct IP address + credentials for this JupyterHub Outpost service.  
 
 
 ## Remote installation
@@ -180,3 +180,4 @@ EOF
 ```
 
 JupyterHub will now be able to reach the JupyterHub Outpost API at `https://myremoteoutpost.com/services` and the ssh daemon for port-forwarding at `${FLOATING_IP_SSH}` on port 22.
+You have to send each connected JupyterHub its credentials (defined in `outpost-users`), the `servicessh` loadBalancerIP address and the URL of your outpost service.
