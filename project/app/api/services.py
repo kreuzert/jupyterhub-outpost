@@ -143,9 +143,13 @@ async def delete_service(
     request: Request,
     db: Session = Depends(get_db),
 ) -> JSONResponse:
-    log.info(f"Delete service {service_name} for {jupyterhub_name}")
-    await full_stop_and_remove(jupyterhub_name, service_name, db, request)
-    return JSONResponse(content={}, status_code=200)
+    log.info(f"Delete service {service_name} for {jupyterhub_name} in background")
+    task = asyncio.create_task(
+        full_stop_and_remove(jupyterhub_name, service_name, db, request)
+    )
+    background_tasks.add(task)
+    task.add_done_callback(background_tasks.discard)
+    return JSONResponse(content={}, status_code=202)
 
 
 @router.post("/services")
