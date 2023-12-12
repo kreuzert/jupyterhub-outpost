@@ -568,21 +568,13 @@ class JupyterHubOutpost(Application):
                 # Update from db
                 wrapper.update_logging()
                 self.log.debug(f"{self._log_name} - Poll service")
-                service = None
-                if state:
-                    self.log.debug(f"{self._log_name} - Load state: {state}")
-                    self.load_state(state)
-                else:
-                    try:
-                        service = get_service(
-                            jupyterhub_name, self.name, self.unique_start_id, db
-                        )
-                        self.log.debug(
-                            f"{self._log_name} - Load state: {decrypt(service.state)}"
-                        )
-                        self.load_state(decrypt(service.state))
-                    except:
-                        self.log.debug(f"{self._log_name} - Could not load service")
+                service = get_service(
+                    jupyterhub_name, self.name, self.unique_start_id, db
+                )
+                self.log.debug(
+                    f"{self._log_name} - Load state: {decrypt(service.state)}"
+                )
+                self.load_state(decrypt(service.state))
                 ret = self.poll()
                 if inspect.isawaitable(ret):
                     ret = await ret
