@@ -143,6 +143,8 @@ async def delete_service(
     request: Request,
     db: Session = Depends(get_db),
 ) -> JSONResponse:
+    # Check if service exists to throw correct error message
+    service = get_service(jupyterhub_name, service_name, db)
     log.info(f"Delete service {service_name} for {jupyterhub_name} in background")
     task = asyncio.create_task(
         full_stop_and_remove(jupyterhub_name, service_name, db, request)

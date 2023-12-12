@@ -124,7 +124,7 @@ def test_delete(client, db_session):
     assert response.json().get("status", "") == None
 
     response = client.delete(f"/services/{service_name}", headers=headers_auth_user)
-    assert response.status_code == 200, response.text
+    assert response.status_code == 202, response.text
 
     response = client.get(f"/services/{service_name}", headers=headers_auth_user)
     assert response.status_code == 404, response.text
@@ -289,7 +289,7 @@ def test_do_not_delete_other_services(client, db_session):
     # 404 because the combination jupyterhub_name <-> service_name does not exist
     assert response.status_code == 404
     response = client.delete(f"/services/{service_name}", headers=headers_auth_user)
-    assert response.status_code == 200
+    assert response.status_code == 202
 
 
 @pytest.mark.parametrize("spawner_config", [simple_direct])
@@ -367,7 +367,7 @@ def test_auth_state_in_start_poll_stop(client, db_session):
     assert response.json().get("status", "") == None
 
     response = client.delete(f"/services/{service_name}", headers=headers)
-    assert response.status_code == 200, response.text
+    assert response.status_code == 202, response.text
 
     response = client.get(f"/services/{service_name}", headers=headers)
     assert response.status_code == 404, response.text
@@ -507,7 +507,7 @@ async def test_flavor_hub_specific_allowance(client, db_session, monkeypatch):
     response = client.delete(
         f"/services/{service_data[0]['name']}", headers=headers_auth_user
     )
-    assert response.status_code == 200, response.text
+    assert response.status_code == 202, response.text
     assert mock_args[0].headers["Authorization"] == "token secret1"
     assert mock_args[0].url == "mock_url"
     i += 1
