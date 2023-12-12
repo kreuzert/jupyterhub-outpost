@@ -48,26 +48,9 @@ async def full_stop_and_remove(
     service_name,
     db,
     request=None,
-    check_for_start_pending=True,
     delete=True,
 ):
     service = get_service(jupyterhub_name, service_name, db)
-    if check_for_start_pending:
-        start_pending = service.start_pending
-        # force after 30 seconds
-        i = 1
-        while start_pending and i <= 6:
-            log.info(
-                f"{service_name} for {jupyterhub_name} is currently starting. Wait 5 seconds (counter: {i}/6) ..."
-            )
-            await asyncio.sleep(5)
-            service = get_service(jupyterhub_name, service_name, db)
-            start_pending = service.start_pending
-            i += 1
-        if start_pending:
-            log.warning(
-                f"{service_name} for {jupyterhub_name} is still start_pending. Stop it anyway"
-            )
     service.stop_pending = True
     db.add(service)
     db.commit()
@@ -235,7 +218,6 @@ async def add_service(
                     service_name,
                     db,
                     request,
-                    check_for_start_pending=False,
                 )
             except:
                 log.exception(

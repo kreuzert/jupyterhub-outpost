@@ -24,11 +24,11 @@ background_tasks = []
 
 
 async def check_enddates():
-    db = next(get_db())
     while True:
         try:
             log.info("Periodic check for ended services")
             now = datetime.now(timezone.utc)
+            db = next(get_db())
             services = get_services_all(jupyterhub_name=None, db=db)
             for service in services:
                 end_date = service["end_date"]
@@ -41,15 +41,15 @@ async def check_enddates():
                             service["jupyterhub"],
                             service["name"],
                             db,
-                            check_for_start_pending=False,
                         )
                     except:
                         log.exception(
                             "end_date check - Could not stop and remove service"
                         )
-            await asyncio.sleep(30)
         except:
             log.exception("Exception in end date checked.")
+        finally:
+            db.close()
             await asyncio.sleep(30)
 
 
