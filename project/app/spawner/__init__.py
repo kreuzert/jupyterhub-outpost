@@ -26,6 +26,7 @@ async def get_spawner(
     auth_state: dict = {},
     certs: dict = {},
     internal_trust_bundles: dict = {},
+    state: dict = {},
 ) -> Spawner:
     if not certs and "certs" in orig_body.keys():
         certs = orig_body.pop("certs", {})
@@ -39,6 +40,7 @@ async def get_spawner(
         auth_state,
         certs,
         internal_trust_bundles,
+        state,
     )
     return ret
 

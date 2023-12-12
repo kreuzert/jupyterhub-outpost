@@ -50,11 +50,16 @@ async def full_stop_and_remove(
     db,
     request=None,
     delete=True,
+    body={},
+    state={},
+    run_async=False,
 ):
-    service = get_service(jupyterhub_name, service_name, unique_start_id, db)
-    service.stop_pending = True
-    db.add(service)
-    db.commit()
+    if not run_async:
+        service = get_service(jupyterhub_name, service_name, unique_start_id, db)
+        service.stop_pending = True
+        db.add(service)
+        db.commit()
+        body = decrypt(service.body)
     wrapper = get_wrapper()
     if request:
         auth_state = get_auth_state(request.headers)
@@ -65,8 +70,9 @@ async def full_stop_and_remove(
         jupyterhub_name,
         service_name,
         unique_start_id,
-        decrypt(service.body),
+        body,
         auth_state,
+        state,
     )
     flavor_update_url = spawner.get_env().get("JUPYTERHUB_FLAVORS_UPDATE_URL", "")
     spawner.log.info(f"{spawner._log_name} - Stop service and remove it from database.")
@@ -84,7 +90,7 @@ async def full_stop_and_remove(
                 f"{spawner._log_name} - Could not send flavor update to {jupyterhub_name}."
             )
         remove_spawner(jupyterhub_name, service_name, unique_start_id)
-    if delete:
+    if delete and not run_async:
         try:
             db.delete(service)
         except:
@@ -154,9 +160,20 @@ async def delete_service(
     service = get_service(jupyterhub_name, service_name, unique_start_id, db)
     if request.headers.get("execution-type", "sync") == "async":
         log.info(f"Delete service {service_name} for {jupyterhub_name} in background")
+        # Service object will be deleted before we can stop it. So we have to retrieve
+        # database information now and pass it to the backend
+        body = decrypt(service.body)
+        state = decrypt(service.state)
         task = asyncio.create_task(
             full_stop_and_remove(
-                jupyterhub_name, service_name, unique_start_id, db, request
+                jupyterhub_name,
+                service_name,
+                unique_start_id,
+                db,
+                request,
+                body=body,
+                state=state,
+                run_async=True,
             )
         )
         background_tasks.add(task)

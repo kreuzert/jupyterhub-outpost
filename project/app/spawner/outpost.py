@@ -117,6 +117,7 @@ class JupyterHubOutpost(Application):
         auth_state={},
         certs={},
         internal_trust_bundles={},
+        state={},
     ):
         if f"{jupyterhub_name}-{service_name}-{unique_start_id}" not in self.spawners:
             self.log.debug(
@@ -130,6 +131,7 @@ class JupyterHubOutpost(Application):
                 auth_state,
                 certs,
                 internal_trust_bundles,
+                state,
             )
             self.spawners[
                 f"{jupyterhub_name}-{service_name}-{unique_start_id}"
@@ -447,6 +449,7 @@ class JupyterHubOutpost(Application):
         auth_state,
         certs,
         internal_trust_bundles,
+        state,
     ):
         # self.config.get('spawner_class', LocalProcessSpawner).get()
         # spawner_class = self.config.get("JupyterHubOutpost", {}).get("spawner_class", LocalProcessSpawner)
@@ -567,7 +570,10 @@ class JupyterHubOutpost(Application):
                 service = get_service(
                     jupyterhub_name, self.name, self.unique_start_id, db
                 )
-                self.load_state(decrypt(service.state))
+                if state:
+                    self.load_state(state)
+                else:
+                    self.load_state(decrypt(service.state))
                 ret = self.poll()
                 if inspect.isawaitable(ret):
                     ret = await ret
@@ -589,7 +595,10 @@ class JupyterHubOutpost(Application):
                 service = get_service(
                     jupyterhub_name, self.name, self.unique_start_id, db
                 )
-                self.load_state(decrypt(service.state))
+                if state:
+                    self.load_state(state)
+                else:
+                    self.load_state(decrypt(service.state))
                 try:
                     ret = self.stop(now)
                     if inspect.isawaitable(ret):
