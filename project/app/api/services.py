@@ -185,7 +185,7 @@ async def delete_service(
                 log.info(
                     f"{jupyterhub_name}-{service_name} - Service fully loaded. Forward with cancel."
                 )
-                continue
+                break
 
         body = decrypt(service.body)
         log.info(f"{jupyterhub_name}-{service_name} - Forward {state} to stop")
