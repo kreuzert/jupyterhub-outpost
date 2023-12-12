@@ -42,17 +42,20 @@ def get_or_create_jupyterhub(
 
 
 def get_service(
-    jupyterhub_name, service_name: str, db: Session
+    jupyterhub_name, service_name: str, unique_start_id: str, db: Session
 ) -> service_schema.Service:
     jupyterhub = get_or_create_jupyterhub(jupyterhub_name, db)
     service = (
         db.query(service_model.Service)
         .filter(service_model.Service.name == service_name)
+        .filter(service_model.Service.unique_start_id == unique_start_id)
         .filter(service_model.Service.jupyterhub == jupyterhub)
         .first()
     )
     if not service:
-        log.info(f"Service {service_name} for {jupyterhub_name} does not exist")
+        log.info(
+            f"Service {service_name} ({unique_start_id}) for {jupyterhub_name} does not exist"
+        )
         raise HTTPException(status_code=404, detail="Item not found")
     return service
 
@@ -72,6 +75,7 @@ def get_services_all(jupyterhub_name=None, db=None) -> service_schema.Service:
     service_list = [
         {
             "name": x.name,
+            "unique_start_id": x.unique_start_id,
             "start_date": x.start_date,
             "end_date": x.end_date,
             "jupyterhub": x.jupyterhub_username,

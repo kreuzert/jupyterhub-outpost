@@ -41,6 +41,7 @@ class JupyterHub(BaseModel):
 
 class Service(BaseModel):
     name: str
+    unique_start_id: str
     jupyterhub: JupyterHub | None = None
     last_update: datetime | None = datetime.now(timezone.utc)
     start_date: datetime | None = datetime.now(timezone.utc)
@@ -59,6 +60,8 @@ class Service(BaseModel):
         body = {}
         body["env"] = kwargs.pop("env", {})
         body["misc"] = kwargs.pop("misc", {})
+        unique_start_id = kwargs.get("user_options", {}).pop("unique_start_id", "0")
+        kwargs["unique_start_id"] = unique_start_id
         body["user_options"] = kwargs.pop("user_options", {})
         body["certs"] = kwargs.pop("certs", {})
         body["internal_trust_bundles"] = kwargs.pop("internal_trust_bundles", {})

@@ -69,13 +69,20 @@ class JupyterHubOutpost(Application):
     logging_config_last_update = 0
     logging_config_file = os.environ.get("LOGGING_CONFIG_PATH")
 
-    def remove_spawner(self, jupyterhub_name, service_name):
-        if f"{jupyterhub_name}-{service_name}" in self.spawners.keys():
+    def remove_spawner(self, jupyterhub_name, service_name, unique_start_id):
+        if (
+            f"{jupyterhub_name}-{service_name}-{unique_start_id}"
+            in self.spawners.keys()
+        ):
             self.log.debug(
-                f"Remove spawner in memory {service_name} for {jupyterhub_name}"
+                f"Remove spawner in memory {service_name} ({unique_start_id}) for {jupyterhub_name}"
             )
-            spawner = self.spawners[f"{jupyterhub_name}-{service_name}"]
-            cert_base_path = f"{certs_dir}/{jupyterhub_name}-{service_name}"
+            spawner = self.spawners[
+                f"{jupyterhub_name}-{service_name}-{unique_start_id}"
+            ]
+            cert_base_path = (
+                f"{certs_dir}/{jupyterhub_name}-{service_name}-{unique_start_id}"
+            )
             cert_basenames = [
                 f"{service_name}.key",
                 f"{service_name}.crt",
@@ -97,33 +104,37 @@ class JupyterHubOutpost(Application):
                 Path(cert_base_path).rmdir()
             except:
                 self.log.exception(
-                    f"Could not delete parent cert dir of {jupyterhub_name}-{service_name}."
+                    f"Could not delete parent cert dir of {jupyterhub_name}-{service_name} ({unique_start_id})."
                 )
-            del self.spawners[f"{jupyterhub_name}-{service_name}"]
+            del self.spawners[f"{jupyterhub_name}-{service_name}-{unique_start_id}"]
 
     async def get_spawner(
         self,
         jupyterhub_name,
         service_name,
+        unique_start_id,
         orig_body,
         auth_state={},
         certs={},
         internal_trust_bundles={},
     ):
-        if f"{jupyterhub_name}-{service_name}" not in self.spawners:
+        if f"{jupyterhub_name}-{service_name}-{unique_start_id}" not in self.spawners:
             self.log.debug(
-                f"Create Spawner object {service_name} for {jupyterhub_name}"
+                f"Create Spawner object {service_name} ({unique_start_id}) for {jupyterhub_name}"
             )
             spawner = await self._new_spawner(
                 jupyterhub_name,
                 service_name,
+                unique_start_id,
                 orig_body,
                 auth_state,
                 certs,
                 internal_trust_bundles,
             )
-            self.spawners[f"{jupyterhub_name}-{service_name}"] = spawner
-        return self.spawners[f"{jupyterhub_name}-{service_name}"]
+            self.spawners[
+                f"{jupyterhub_name}-{service_name}-{unique_start_id}"
+            ] = spawner
+        return self.spawners[f"{jupyterhub_name}-{service_name}-{unique_start_id}"]
 
     allow_override = Any(
         default_value=None,
@@ -431,6 +442,7 @@ class JupyterHubOutpost(Application):
         wrapper,
         jupyterhub_name,
         service_name,
+        unique_start_id,
         orig_body,
         auth_state,
         certs,
@@ -535,7 +547,9 @@ class JupyterHubOutpost(Application):
                 except:
                     self.log.exception(f"{self._log_name} - Start failed")
                     raise
-                service = get_service(jupyterhub_name, self.name, db)
+                service = get_service(
+                    jupyterhub_name, self.name, self.unique_start_id, db
+                )
                 flavors = await wrapper.get_flavors(jupyterhub_name)
                 if service.flavor in flavors.keys():
                     runtime = flavors[service.flavor].get("runtime", False)
@@ -550,7 +564,9 @@ class JupyterHubOutpost(Application):
                 # Update from db
                 wrapper.update_logging()
                 self.log.debug(f"{self._log_name} - Poll service")
-                service = get_service(jupyterhub_name, self.name, db)
+                service = get_service(
+                    jupyterhub_name, self.name, self.unique_start_id, db
+                )
                 self.load_state(decrypt(service.state))
                 ret = self.poll()
                 if inspect.isawaitable(ret):
@@ -570,7 +586,9 @@ class JupyterHubOutpost(Application):
 
             async def _outpostspawner_db_stop_call(self, db, now=False):
                 # Update from db
-                service = get_service(jupyterhub_name, self.name, db)
+                service = get_service(
+                    jupyterhub_name, self.name, self.unique_start_id, db
+                )
                 self.load_state(decrypt(service.state))
                 try:
                     ret = self.stop(now)
@@ -623,6 +641,7 @@ class JupyterHubOutpost(Application):
         spawner = DummySpawner(
             jupyterhub_name,
             service_name,
+            unique_start_id,
             orig_body,
             certs,
             internal_trust_bundles,

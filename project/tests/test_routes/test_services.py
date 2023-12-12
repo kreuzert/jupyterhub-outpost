@@ -1,3 +1,4 @@
+import time
 from datetime import datetime
 from datetime import timedelta
 
@@ -124,7 +125,7 @@ def test_delete(client, db_session):
     assert response.json().get("status", "") == None
 
     response = client.delete(f"/services/{service_name}", headers=headers_auth_user)
-    assert response.status_code == 202, response.text
+    assert response.status_code == 200, response.text
 
     response = client.get(f"/services/{service_name}", headers=headers_auth_user)
     assert response.status_code == 404, response.text
@@ -132,7 +133,7 @@ def test_delete(client, db_session):
     from fastapi.exceptions import HTTPException
 
     with raises(HTTPException):
-        get_service(jupyterhub_name, service_name, db_session)
+        get_service(jupyterhub_name, service_name, "0", db_session)
 
 
 @pytest.mark.parametrize("spawner_config", [simple_direct])
@@ -154,9 +155,9 @@ def test_list_respects_authentication(client):
 
 @pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_401_endpoints(client):
-    response = client.get("/services/0", headers=headers_auth_wrong_pw)
+    response = client.get("/services/0/0", headers=headers_auth_wrong_pw)
     assert response.status_code == 401, response.text
-    response = client.delete("/services/0", headers=headers_auth_wrong_pw)
+    response = client.delete("/services/0/0", headers=headers_auth_wrong_pw)
     assert response.status_code == 401, response.text
     response = client.get("/services/", headers=headers_auth_wrong_pw)
     assert response.status_code == 401, response.text
@@ -214,7 +215,7 @@ def test_last_update_updated(client, db_session):
     service_data = {"name": service_name}
     response = client.post("/services", json=service_data, headers=headers_auth_user)
     assert response.status_code == 200, response.text
-    service = get_service(jupyterhub_name, service_name, db_session)
+    service = get_service(jupyterhub_name, service_name, "0", db_session)
     after_spawn = service.last_update
 
     response = client.get(f"/services/{service_name}", headers=headers_auth_user)
@@ -244,14 +245,14 @@ async def test_certs_not_stored_in_db(client, db_session):
     }
     response = client.post("/services", json=service_data, headers=headers_auth_user)
     assert response.status_code == 200, response.text
-    service = get_service(jupyterhub_name, service_name, db_session)
+    service = get_service(jupyterhub_name, service_name, "0", db_session)
     body = decrypt(service.body)
     assert "env" in body.keys()
     assert "certs" not in body.keys()
     assert "internal_trust_bundles" not in body.keys()
 
     # Certs should not stored in database, but in memory it's required
-    spawner = await get_spawner(jupyterhub_name, service_name, {})
+    spawner = await get_spawner(jupyterhub_name, service_name, "0", {})
 
     # certs are stored in paths describe in cert_paths
     assert spawner.cert_paths
@@ -289,7 +290,7 @@ def test_do_not_delete_other_services(client, db_session):
     # 404 because the combination jupyterhub_name <-> service_name does not exist
     assert response.status_code == 404
     response = client.delete(f"/services/{service_name}", headers=headers_auth_user)
-    assert response.status_code == 202
+    assert response.status_code == 200
 
 
 @pytest.mark.parametrize("spawner_config", [simple_direct])
@@ -299,9 +300,9 @@ def test_allow_same_name_twice_different_jupyterhub(client, db_session):
     service_data = {"name": service_name}
     response = client.post("/services", json=service_data, headers=headers_auth_user)
     response2 = client.post("/services", json=service_data, headers=headers_auth_user2)
-    service1 = get_service("authenticated", service_name, db_session)
-    service2 = get_service("authenticated2", service_name, db_session)
-    service3 = get_service("authenticated", service_name, db_session)
+    service1 = get_service("authenticated", service_name, "0", db_session)
+    service2 = get_service("authenticated2", service_name, "0", db_session)
+    service3 = get_service("authenticated", service_name, "0", db_session)
     state1 = decrypt(service1.state)
     state2 = decrypt(service2.state)
     state3 = decrypt(service3.state)
@@ -367,7 +368,32 @@ def test_auth_state_in_start_poll_stop(client, db_session):
     assert response.json().get("status", "") == None
 
     response = client.delete(f"/services/{service_name}", headers=headers)
+    assert response.status_code == 200, response.text
+
+    response = client.get(f"/services/{service_name}", headers=headers)
+    assert response.status_code == 404, response.text
+
+
+@pytest.mark.parametrize("spawner_config", [auth_state_required])
+def test_auth_state_in_start_poll_async_stop(client, db_session):
+    import copy
+
+    service_name = "user-servername"
+    service_data = {"name": service_name, "misc": {"cmd": "sleep", "args": "5"}}
+    headers = copy.deepcopy(headers_auth_user)
+    headers["Auth-State-access_token"] = "secret"
+    response = client.post("/services", json=service_data, headers=headers)
+    assert response.status_code == 200, response.text
+
+    response = client.get(f"/services/{service_name}", headers=headers)
+    assert response.status_code == 200, response.text
+    assert response.json().get("status", "") == None
+
+    headers["execution-type"] = "async"
+    response = client.delete(f"/services/{service_name}", headers=headers)
     assert response.status_code == 202, response.text
+
+    time.sleep(5)
 
     response = client.get(f"/services/{service_name}", headers=headers)
     assert response.status_code == 404, response.text
@@ -397,7 +423,7 @@ async def test_flavor_runtime_in_enddate(client, db_session):
     }
     response = client.post("/services", json=service_data, headers=headers_auth_user)
     assert response.status_code == 200
-    svc = get_service(jupyterhub_name, service_name, db_session)
+    svc = get_service(jupyterhub_name, service_name, "0", db_session)
     assert datetime.now() + timedelta(minutes=120) > svc.end_date
     assert datetime.now() + timedelta(minutes=119) < svc.end_date
 
@@ -413,7 +439,7 @@ async def test_flavor_runtime_no_enddate(client, db_session):
     }
     response = client.post("/services", json=service_data, headers=headers_auth_user2)
     assert response.status_code == 200
-    svc = get_service(jupyterhub_name2, service_name, db_session)
+    svc = get_service(jupyterhub_name2, service_name, "0", db_session)
     assert datetime.max == svc.end_date
 
 
@@ -507,7 +533,7 @@ async def test_flavor_hub_specific_allowance(client, db_session, monkeypatch):
     response = client.delete(
         f"/services/{service_data[0]['name']}", headers=headers_auth_user
     )
-    assert response.status_code == 202, response.text
+    assert response.status_code == 200, response.text
     assert mock_args[0].headers["Authorization"] == "token secret1"
     assert mock_args[0].url == "mock_url"
     i += 1

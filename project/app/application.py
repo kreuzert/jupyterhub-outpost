@@ -35,11 +35,12 @@ async def check_enddates():
                 if now > end_date:
                     try:
                         log.info(
-                            f"end_date check - Stop and remove {service['name']} ({service['jupyterhub']}) (end_date: {end_date})"
+                            f"end_date check - Stop and remove {service['name']} ({service['unique_start_id']}) ({service['jupyterhub']}) (end_date: {end_date})"
                         )
                         await full_stop_and_remove(
                             service["jupyterhub"],
                             service["name"],
+                            service["unique_start_id"],
                             db,
                         )
                     except:
