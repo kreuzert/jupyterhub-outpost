@@ -596,13 +596,14 @@ class JupyterHubOutpost(Application):
 
             async def _outpostspawner_db_stop_call(self, db, now=False):
                 # Update from db
-                service = get_service(
-                    jupyterhub_name, self.name, self.unique_start_id, db
-                )
                 if state:
                     self.log.debug(f"{self._log_name} - Load state: {state}")
                     self.load_state(state)
+                    service = None
                 else:
+                    service = get_service(
+                        jupyterhub_name, self.name, self.unique_start_id, db
+                    )
                     self.log.debug(
                         f"{self._log_name} - Load state: {decrypt(service.state)}"
                     )
@@ -618,8 +619,9 @@ class JupyterHubOutpost(Application):
                 except:
                     self.log.exception(f"{self._log_name} - Run post stop hook failed")
                 self.clear_state()
-                db.delete(service)
-                db.commit()
+                if service:
+                    db.delete(service)
+                    db.commit()
                 return ret
 
         if wrapper.allow_override and orig_body.get("misc", {}):

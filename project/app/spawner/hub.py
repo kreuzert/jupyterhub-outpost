@@ -42,6 +42,9 @@ class OutpostUser:
     async def get_auth_state(self):
         return self.auth_state
 
+    async def stop(self, *args, **kwargs):
+        pass
+
 
 class OutpostSpawner:
     environment = {}
