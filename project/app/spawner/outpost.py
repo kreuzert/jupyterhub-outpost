@@ -568,22 +568,27 @@ class JupyterHubOutpost(Application):
                 # Update from db
                 wrapper.update_logging()
                 self.log.debug(f"{self._log_name} - Poll service")
-                service = get_service(
-                    jupyterhub_name, self.name, self.unique_start_id, db
-                )
+                service = None
                 if state:
                     self.log.debug(f"{self._log_name} - Load state: {state}")
                     self.load_state(state)
                 else:
-                    self.log.debug(
-                        f"{self._log_name} - Load state: {decrypt(service.state)}"
-                    )
-                    self.load_state(decrypt(service.state))
+                    try:
+                        service = get_service(
+                            jupyterhub_name, self.name, self.unique_start_id, db
+                        )
+                        self.log.debug(
+                            f"{self._log_name} - Load state: {decrypt(service.state)}"
+                        )
+                        self.load_state(decrypt(service.state))
+                    except:
+                        self.log.debug(f"{self._log_name} - Could not load service")
                 ret = self.poll()
                 if inspect.isawaitable(ret):
                     ret = await ret
-                service.last_update = datetime.now()
-                db.commit()
+                if service:
+                    service.last_update = datetime.now()
+                    db.commit()
                 return ret
 
             async def _outpostspawner_db_stop(self, db, now=False):
@@ -597,33 +602,22 @@ class JupyterHubOutpost(Application):
 
             async def _outpostspawner_db_stop_call(self, db, now=False):
                 # Update from db
+                service = None
                 if state:
                     self.log.debug(f"{self._log_name} - Load state: {state}")
                     self.load_state(state)
                     service = None
                 else:
-                    # If there's no state yet, because the service is cancelled
-                    # before the start process has stored a state.
-                    # We should wait for it for max 60
-                    # seconds, so we have a chance to cancel it correctly.
-                    until = time.time() + 60
-                    while time.time() < until:
-                        try:
-                            service = get_service(
-                                jupyterhub_name, self.name, self.unique_start_id, db
-                            )
-                            self.log.debug(
-                                f"{self._log_name} - Load state: {decrypt(service.state)}"
-                            )
-                            self.load_state(decrypt(service.state))
-                        except:
-                            self.log.debug(f"{self._log_name} - Could not load service")
-                            await asyncio.sleep(1)
-                        else:
-                            self.log.info(
-                                f"{self._log_name} - Service fully loaded. Forward with cancel."
-                            )
-                            continue
+                    try:
+                        service = get_service(
+                            jupyterhub_name, self.name, self.unique_start_id, db
+                        )
+                        self.log.debug(
+                            f"{self._log_name} - Load state: {decrypt(service.state)}"
+                        )
+                        self.load_state(decrypt(service.state))
+                    except:
+                        self.log.debug(f"{self._log_name} - Could not load service")
                 try:
                     ret = self.stop(now)
                     if inspect.isawaitable(ret):
@@ -682,6 +676,8 @@ class JupyterHubOutpost(Application):
             internal_trust_bundles,
             **config,
         )
+        if state:
+            spawner.load_state(state)
         return spawner
 
     _log_formatter_cls = CoroutineLogFormatter
