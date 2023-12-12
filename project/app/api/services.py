@@ -238,11 +238,12 @@ async def add_service(
 
     async def async_start():
         # remove spawner from wrapper to ensure it's using the current config
-        remove_spawner(jupyterhub_name, service.name, service.unique_start_id)
+        unique_start_id = service.unique_start_id
+        remove_spawner(jupyterhub_name, service.name, unique_start_id)
         spawner = await get_spawner(
             jupyterhub_name,
             service.name,
-            service.unique_start_id,
+            unique_start_id,
             decrypt(service.body),
             get_auth_state(request.headers),
             certs,
@@ -256,6 +257,7 @@ async def add_service(
                 await full_stop_and_remove(
                     jupyterhub_name,
                     service_name,
+                    unique_start_id,
                     db,
                     request,
                 )

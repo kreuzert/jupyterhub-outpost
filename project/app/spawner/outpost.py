@@ -571,8 +571,12 @@ class JupyterHubOutpost(Application):
                     jupyterhub_name, self.name, self.unique_start_id, db
                 )
                 if state:
+                    self.log.debug(f"{self._log_name} - Load state: {state}")
                     self.load_state(state)
                 else:
+                    self.log.debug(
+                        f"{self._log_name} - Load state: {decrypt(service.state)}"
+                    )
                     self.load_state(decrypt(service.state))
                 ret = self.poll()
                 if inspect.isawaitable(ret):
@@ -596,8 +600,12 @@ class JupyterHubOutpost(Application):
                     jupyterhub_name, self.name, self.unique_start_id, db
                 )
                 if state:
+                    self.log.debug(f"{self._log_name} - Load state: {state}")
                     self.load_state(state)
                 else:
+                    self.log.debug(
+                        f"{self._log_name} - Load state: {decrypt(service.state)}"
+                    )
                     self.load_state(decrypt(service.state))
                 try:
                     ret = self.stop(now)
