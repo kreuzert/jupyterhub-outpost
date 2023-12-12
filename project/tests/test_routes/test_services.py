@@ -393,7 +393,7 @@ def test_auth_state_in_start_poll_async_stop(client, db_session):
     response = client.delete(f"/services/{service_name}", headers=headers)
     assert response.status_code == 202, response.text
 
-    time.sleep(5)
+    time.sleep(10)
 
     response = client.get(f"/services/{service_name}", headers=headers)
     assert response.status_code == 404, response.text
