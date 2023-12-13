@@ -170,7 +170,7 @@ async def delete_service(
         # before the start process has stored a state,
         # we should wait for it for max 60
         # seconds, so we have a chance to cancel it correctly.
-        until = time.time() + 60
+        until = time.time() + 5
         state = {}
         while time.time() < until:
             try:
@@ -188,7 +188,7 @@ async def delete_service(
                 state = decrypt(service.state)
             except:
                 log.debug(f"{jupyterhub_name}-{service_name} - Could not load service")
-                await asyncio.sleep(2)
+                await asyncio.sleep(1)
             else:
                 log.info(
                     f"{jupyterhub_name}-{service_name} - Service fully loaded. Forward with cancel."
