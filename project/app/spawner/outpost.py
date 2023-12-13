@@ -570,12 +570,12 @@ class JupyterHubOutpost(Application):
                 wrapper.update_logging()
                 self.log.debug(f"{self._log_name} - Poll service")
 
-                service = get_service(
-                    jupyterhub_name, self.name, self.unique_start_id, db
-                )
                 # wait up to 5 seconds until the state is stored
                 until = time.time() + 5
                 while time.time() < until:
+                    service = get_service(
+                        jupyterhub_name, self.name, self.unique_start_id, db
+                    )
                     if service.state_stored:
                         self.log.debug(
                             f"{self._log_name} - Load state from database: {decrypt(service.state)}"
@@ -586,6 +586,7 @@ class JupyterHubOutpost(Application):
                         self.log.debug(
                             f"{self._log_name} - Wait for load until state is stored"
                         )
+                        await asyncio.sleep(1)
 
                 ret = self.poll()
                 if inspect.isawaitable(ret):
