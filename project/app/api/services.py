@@ -57,6 +57,11 @@ async def full_stop_and_remove(
 ):
     if not run_async:
         service = get_service(jupyterhub_name, service_name, unique_start_id, db)
+        if service.stop_pending:
+            log.info(
+                f"{jupyterhub_name} - {service_name} is already stopping. No need to stop it twice"
+            )
+            return
         service.stop_pending = True
         db.add(service)
         db.commit()
@@ -177,6 +182,15 @@ async def delete_service(
                 service = get_service(
                     jupyterhub_name, service_name, unique_start_id, db
                 )
+                if service.stop_pending:
+                    # It's already stopping, no need to wait for it here.
+                    # This happens if async_start was cancelled and stops
+                    # the service itself.
+                    log.info(
+                        f"{jupyterhub_name} - {service_name} is already stopping. No need to stop it twice"
+                    )
+                    return JSONResponse(content={}, status_code=202)
+
                 if not service.state_stored:
                     log.debug(
                         f"{jupyterhub_name}-{service_name} - State not stored yet"
