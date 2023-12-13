@@ -51,6 +51,11 @@ class OutpostSpawner:
     jupyterhub_name = ""
     unique_start_id = ""
 
+    def clear_state(self):
+        store_unique_id = self.unique_start_id
+        super().clear_state()
+        self.unique_start_id = store_unique_id
+
     def __init__(
         self,
         jupyterhub_name,

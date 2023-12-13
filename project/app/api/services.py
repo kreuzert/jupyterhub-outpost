@@ -50,16 +50,22 @@ async def full_stop_and_remove(
     unique_start_id,
     db,
     request=None,
-    delete=True,
     body={},
     state={},
     run_async=False,
 ):
     if not run_async:
-        service = get_service(jupyterhub_name, service_name, unique_start_id, db)
-        if service.stop_pending:
-            log.info(
-                f"{jupyterhub_name} - {service_name} is already stopping. No need to stop it twice"
+        try:
+            service = get_service(jupyterhub_name, service_name, unique_start_id, db)
+            if service.stop_pending:
+                log.info(
+                    f"{jupyterhub_name} - {service_name} is already stopping. No need to stop it twice"
+                )
+                db.delete(service)
+                return
+        except:
+            log.exception(
+                f"{jupyterhub_name} - {service_name} Does not exist. No need to stop it again"
             )
             return
         service.stop_pending = True
@@ -96,13 +102,13 @@ async def full_stop_and_remove(
                 f"{spawner._log_name} - Could not send flavor update to {jupyterhub_name}."
             )
         remove_spawner(jupyterhub_name, service_name, unique_start_id)
-    if delete and not run_async:
-        try:
-            db.delete(service)
-        except:
-            log.exception(
-                f"{jupyterhub_name}-{service_name} - Could not delete service from database"
-            )
+    try:
+        service = get_service(jupyterhub_name, service_name, unique_start_id, db)
+        db.delete(service)
+    except Exception as e:
+        log.debug(
+            f"{jupyterhub_name}-{service_name} - Could not delete service from database"
+        )
 
 
 @router.get("/flavors/")
@@ -299,6 +305,7 @@ async def add_service(
         try:
             ret = await spawner._outpostspawner_db_start(db)
         except Exception as e:
+            log.exception(f"{jupyterhub_name} - {service_name} - Could not start")
             try:
                 await full_stop_and_remove(
                     jupyterhub_name,
@@ -313,9 +320,7 @@ async def add_service(
                 )
             raise e
         else:
-            service_ = get_service(
-                jupyterhub_name, service.name, service.unique_start_id, db
-            )
+            service_ = get_service(jupyterhub_name, service.name, unique_start_id, db)
             service_.start_pending = False
             db.add(service_)
             db.commit()
