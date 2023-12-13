@@ -23,10 +23,15 @@ log = logging.getLogger(logger_name)
 background_tasks = []
 
 
+async def check_running_services():
+    pass
+    # TODO
+
+
 async def check_enddates():
     while True:
         try:
-            log.info("Periodic check for ended services")
+            log.debug("Periodic check for ended services")
             now = datetime.now(timezone.utc)
             db = next(get_db())
             services = get_services_all(jupyterhub_name=None, db=db)

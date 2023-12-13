@@ -33,6 +33,7 @@ class Service(Base):
     last_update = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
     start_date = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
     end_date = Column(DateTime(timezone=True), default=datetime.max)
+    state_stored = Column(Boolean, default=False)
     start_pending = Column(Boolean, default=True)
     stop_pending = Column(Boolean, default=False)
     body = Column(LargeBinary, default=None)

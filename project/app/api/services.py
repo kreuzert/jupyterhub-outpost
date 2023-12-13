@@ -161,19 +161,27 @@ async def delete_service(
     service = get_service(jupyterhub_name, service_name, unique_start_id, db)
     if request.headers.get("execution-type", "sync") == "async":
         log.info(f"Delete service {service_name} for {jupyterhub_name} in background")
-        # Service object will be deleted before we can stop it. So we have to retrieve
+        body = decrypt(service.body)
+        # Service object will be deleted at the end of this function
+        # before we can stop it. So we have to retrieve
         # database information now and pass it to the backend
 
         # If there's no state yet, because the service is cancelled
-        # before the start process has stored a state.
-        # We should wait for it for max 60
+        # before the start process has stored a state,
+        # we should wait for it for max 60
         # seconds, so we have a chance to cancel it correctly.
         until = time.time() + 60
+        state = {}
         while time.time() < until:
             try:
                 service = get_service(
                     jupyterhub_name, service_name, unique_start_id, db
                 )
+                if not service.state_stored:
+                    log.debug(
+                        f"{jupyterhub_name}-{service_name} - State not stored yet"
+                    )
+                    raise Exception("State not stored yet")
                 log.debug(
                     f"{jupyterhub_name}-{service_name} - Load state: {decrypt(service.state)}"
                 )
@@ -187,7 +195,6 @@ async def delete_service(
                 )
                 break
 
-        body = decrypt(service.body)
         log.info(f"{jupyterhub_name}-{service_name} - Forward {state} to stop")
         task = asyncio.create_task(
             full_stop_and_remove(
