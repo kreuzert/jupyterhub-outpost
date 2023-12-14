@@ -25,6 +25,13 @@ background_tasks = []
 
 
 async def check_running_services():
+    from database import db_url
+    from database import engine_kwargs
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    engine = create_engine(db_url, **engine_kwargs)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     jhub_cleanup_names = os.environ.get("JUPYTERHUB_CLEANUP_NAMES", "")
     jhub_cleanup_urls = os.environ.get("JUPYTERHUB_CLEANUP_URLS", "")
     jhub_cleanup_tokens = os.environ.get("JUPYTERHUB_CLEANUP_TOKENS", "")
@@ -37,7 +44,7 @@ async def check_running_services():
         jhub_cleanup_tokens_list = jhub_cleanup_tokens.split(";")
         while True:
             try:
-                db = next(get_db())
+                db = SessionLocal()
                 running_services_in_jhub = {}
                 i = 0
                 for jhub_cleanup_name in jhub_cleanup_names:
@@ -95,11 +102,18 @@ async def check_running_services():
 
 
 async def check_enddates():
+    from database import db_url
+    from database import engine_kwargs
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    engine = create_engine(db_url, **engine_kwargs)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     while True:
         try:
             log.debug("Periodic check for ended services")
             now = datetime.now(timezone.utc)
-            db = next(get_db())
+            db = SessionLocal()
             services = get_services_all(jupyterhub_name=None, db=db)
             for service in services:
                 end_date = service["end_date"]
