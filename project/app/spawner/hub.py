@@ -49,18 +49,18 @@ class OutpostUser:
 class OutpostSpawner:
     environment = {}
     jupyterhub_name = ""
-    unique_start_id = ""
+    start_id = ""
 
     def clear_state(self):
-        store_unique_id = self.unique_start_id
+        store_unique_id = self.start_id
         super().clear_state()
-        self.unique_start_id = store_unique_id
+        self.start_id = store_unique_id
 
     def __init__(
         self,
         jupyterhub_name,
         service_name,
-        unique_start_id,
+        start_id,
         orig_body,
         certs,
         internal_trust_bundles,
@@ -69,7 +69,7 @@ class OutpostSpawner:
         self.user = config["user"]
         self.hub = config["hub"]
         self.jupyterhub_name = jupyterhub_name
-        self.unique_start_id = unique_start_id
+        self.start_id = start_id
         self.name = service_name
         self.environment = {}
         env = orig_body.get("environment", {})
@@ -81,9 +81,7 @@ class OutpostSpawner:
 
         if certs:
             self.internal_ssl = True
-            out_dir = (
-                f"{certs_dir}/{jupyterhub_name}-{self.name}-{self.unique_start_id}"
-            )
+            out_dir = f"{certs_dir}/{jupyterhub_name}-{self.name}-{self.start_id}"
             shutil.rmtree(out_dir, ignore_errors=True)
             os.makedirs(out_dir, 0o700, exist_ok=True)
 

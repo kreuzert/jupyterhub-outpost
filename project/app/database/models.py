@@ -28,7 +28,7 @@ class Service(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name = Column(String)
-    unique_start_id = Column(String, default="0")
+    start_id = Column(String, default="0")
     jupyterhub_username: Mapped[str] = mapped_column(ForeignKey("jupyterhub.name"))
     last_update = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
     start_date = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))

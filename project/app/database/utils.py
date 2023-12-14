@@ -4,6 +4,7 @@ import os
 from database import models as service_model
 from database import schemas as service_schema
 from database import SessionLocal
+from database.schemas import decrypt
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -42,19 +43,19 @@ def get_or_create_jupyterhub(
 
 
 def get_service(
-    jupyterhub_name, service_name: str, unique_start_id: str, db: Session
+    jupyterhub_name, service_name: str, start_id: str, db: Session
 ) -> service_schema.Service:
     jupyterhub = get_or_create_jupyterhub(jupyterhub_name, db)
     service = (
         db.query(service_model.Service)
         .filter(service_model.Service.name == service_name)
-        .filter(service_model.Service.unique_start_id == unique_start_id)
+        .filter(service_model.Service.start_id == start_id)
         .filter(service_model.Service.jupyterhub == jupyterhub)
         .first()
     )
     if not service:
         log.info(
-            f"Service {service_name} ({unique_start_id}) for {jupyterhub_name} does not exist"
+            f"Service {service_name} ({start_id}) for {jupyterhub_name} does not exist"
         )
         raise HTTPException(status_code=404, detail="Item not found")
     return service
@@ -75,10 +76,13 @@ def get_services_all(jupyterhub_name=None, db=None) -> service_schema.Service:
     service_list = [
         {
             "name": x.name,
-            "unique_start_id": x.unique_start_id,
+            "start_id": x.start_id,
             "start_date": x.start_date,
             "end_date": x.end_date,
             "jupyterhub": x.jupyterhub_username,
+            "jupyterhub_userid": decrypt(x.body)
+            .get("env", {})
+            .get("JUPYTERHUB_USER_ID", "0"),
             "last_update": x.last_update,
             "state_stored": x.state_stored,
             "start_pending": x.start_pending,

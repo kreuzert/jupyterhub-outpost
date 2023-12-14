@@ -21,7 +21,7 @@ def remove_wrapper() -> None:
 async def get_spawner(
     jupyterhub_name: str,
     service_name: str,
-    unique_start_id: str,
+    start_id: str,
     orig_body: bytes,
     auth_state: dict = {},
     certs: dict = {},
@@ -35,7 +35,7 @@ async def get_spawner(
     ret = await get_wrapper().get_spawner(
         jupyterhub_name,
         service_name,
-        unique_start_id,
+        start_id,
         orig_body,
         auth_state,
         certs,
@@ -45,7 +45,5 @@ async def get_spawner(
     return ret
 
 
-def remove_spawner(
-    jupyterhub_name: str, service_name: str, unique_start_id: str
-) -> None:
-    get_wrapper().remove_spawner(jupyterhub_name, service_name, unique_start_id)
+def remove_spawner(jupyterhub_name: str, service_name: str, start_id: str) -> None:
+    get_wrapper().remove_spawner(jupyterhub_name, service_name, start_id)

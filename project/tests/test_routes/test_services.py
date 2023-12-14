@@ -154,6 +154,24 @@ def test_list_respects_authentication(client):
 
 
 @pytest.mark.parametrize("spawner_config", [simple_direct])
+def test_list_userid(client):
+    response = client.get("/services/", headers=headers_auth_user)
+    assert response.status_code == 200, response.text
+    assert response.json() == []
+    service_name = "user-servername"
+    service_data = {
+        "name": service_name,
+        "misc": {"cmd": "sleep", "args": "5"},
+        "env": {"JUPYTERHUB_USER_ID": "17"},
+    }
+    response = client.post("/services", json=service_data, headers=headers_auth_user)
+    response = client.get("/services/", headers=headers_auth_user)
+    assert response.status_code == 200, response.text
+    assert response.json() != []
+    assert response.json()[0]["jupyterhub_userid"] == "17"
+
+
+@pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_401_endpoints(client):
     response = client.get("/services/0/0", headers=headers_auth_wrong_pw)
     assert response.status_code == 401, response.text

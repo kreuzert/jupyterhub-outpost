@@ -47,7 +47,7 @@ def get_auth_state(headers):
 async def full_stop_and_remove(
     jupyterhub_name,
     service_name,
-    unique_start_id,
+    start_id,
     db,
     request=None,
     body={},
@@ -56,7 +56,7 @@ async def full_stop_and_remove(
 ):
     if not run_async:
         try:
-            service = get_service(jupyterhub_name, service_name, unique_start_id, db)
+            service = get_service(jupyterhub_name, service_name, start_id, db)
             if service.stop_pending:
                 log.info(
                     f"{jupyterhub_name} - {service_name} is already stopping. No need to stop it twice"
@@ -81,7 +81,7 @@ async def full_stop_and_remove(
     spawner = await get_spawner(
         jupyterhub_name,
         service_name,
-        unique_start_id,
+        start_id,
         body,
         auth_state,
         state,
@@ -101,9 +101,9 @@ async def full_stop_and_remove(
             spawner.log.exception(
                 f"{spawner._log_name} - Could not send flavor update to {jupyterhub_name}."
             )
-        remove_spawner(jupyterhub_name, service_name, unique_start_id)
+        remove_spawner(jupyterhub_name, service_name, start_id)
     try:
-        service = get_service(jupyterhub_name, service_name, unique_start_id, db)
+        service = get_service(jupyterhub_name, service_name, start_id, db)
         db.delete(service)
     except Exception as e:
         log.debug(
@@ -136,21 +136,21 @@ async def list_services(
 
 
 @router.get("/services/{service_name}")
-@router.get("/services/{service_name}/{unique_start_id}")
+@router.get("/services/{service_name}/{start_id}")
 @catch_exception
 async def get_services(
     service_name: str,
-    unique_start_id: str = "0",
+    start_id: str = "0",
     jupyterhub_name: Annotated[HTTPBasicCredentials, Depends(verify_user)] = None,
     request: Request = None,
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     log.debug(f"Get service {service_name} for {jupyterhub_name}")
-    service = get_service(jupyterhub_name, service_name, unique_start_id, db)
+    service = get_service(jupyterhub_name, service_name, start_id, db)
     spawner = await get_spawner(
         jupyterhub_name,
         service_name,
-        unique_start_id,
+        start_id,
         decrypt(service.body),
         get_auth_state(request.headers),
     )
@@ -159,17 +159,17 @@ async def get_services(
 
 
 @router.delete("/services/{service_name}")
-@router.delete("/services/{service_name}/{unique_start_id}")
+@router.delete("/services/{service_name}/{start_id}")
 @catch_exception
 async def delete_service(
     service_name: str,
-    unique_start_id: str = "0",
+    start_id: str = "0",
     jupyterhub_name: Annotated[HTTPBasicCredentials, Depends(verify_user)] = None,
     request: Request = None,
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     # Check if service exists to throw correct error message
-    service = get_service(jupyterhub_name, service_name, unique_start_id, db)
+    service = get_service(jupyterhub_name, service_name, start_id, db)
     if request.headers.get("execution-type", "sync") == "async":
         log.info(f"Delete service {service_name} for {jupyterhub_name} in background")
         body = decrypt(service.body)
@@ -185,9 +185,7 @@ async def delete_service(
         state = {}
         while time.time() < until:
             try:
-                service = get_service(
-                    jupyterhub_name, service_name, unique_start_id, db
-                )
+                service = get_service(jupyterhub_name, service_name, start_id, db)
                 if service.stop_pending:
                     # It's already stopping, no need to wait for it here.
                     # This happens if async_start was cancelled and stops
@@ -220,7 +218,7 @@ async def delete_service(
             full_stop_and_remove(
                 jupyterhub_name,
                 service_name,
-                unique_start_id,
+                start_id,
                 db,
                 request,
                 body=body,
@@ -233,9 +231,7 @@ async def delete_service(
         return JSONResponse(content={}, status_code=202)
     else:
         log.info(f"Delete service {service_name} for {jupyterhub_name} and wait for it")
-        await full_stop_and_remove(
-            jupyterhub_name, service_name, unique_start_id, db, request
-        )
+        await full_stop_and_remove(jupyterhub_name, service_name, start_id, db, request)
         return JSONResponse(content={}, status_code=200)
 
 
@@ -290,12 +286,12 @@ async def add_service(
 
     async def async_start():
         # remove spawner from wrapper to ensure it's using the current config
-        unique_start_id = service.unique_start_id
-        remove_spawner(jupyterhub_name, service.name, unique_start_id)
+        start_id = service.start_id
+        remove_spawner(jupyterhub_name, service.name, start_id)
         spawner = await get_spawner(
             jupyterhub_name,
             service.name,
-            unique_start_id,
+            start_id,
             decrypt(service.body),
             get_auth_state(request.headers),
             certs,
@@ -310,7 +306,7 @@ async def add_service(
                 await full_stop_and_remove(
                     jupyterhub_name,
                     service_name,
-                    unique_start_id,
+                    start_id,
                     db,
                     request,
                 )
@@ -320,7 +316,7 @@ async def add_service(
                 )
             raise e
         else:
-            service_ = get_service(jupyterhub_name, service.name, unique_start_id, db)
+            service_ = get_service(jupyterhub_name, service.name, start_id, db)
             service_.start_pending = False
             db.add(service_)
             db.commit()
