@@ -615,7 +615,7 @@ class JupyterHubOutpost(Application):
                     self.log.exception(f"{self._log_name} - Run post stop hook failed")
                 self.clear_state()
                 if service:
-                    db.delete(service)
+                    service.delete()
                     db.commit()
                 return ret
 
