@@ -362,7 +362,13 @@ class JupyterHubOutpost(Application):
     def _default_http_client(self):
         return AsyncHTTPClient(force_instance=True, defaults=dict(validate_cert=False))
 
-    async def _outpostspawner_get_flavor_values(self, db, jupyterhub_name):
+    async def _outpostspawner_get_flavor_values(
+        self,
+        db,
+        jupyterhub_name,
+        add_one_flavor_count=None,
+        reduce_one_flavor_count=None,
+    ):
         configured_flavors = await self.get_flavors(jupyterhub_name)
         flavors = (
             db.query(
@@ -393,10 +399,26 @@ class JupyterHubOutpost(Application):
             if flavor_name not in ret.keys():
                 ret[flavor_name] = flavor_description
                 ret[flavor_name]["current"] = 0
+        if add_one_flavor_count and add_one_flavor_count in ret.keys():
+            # We may want to send an update to JHub before we've started the service
+            # Add this value to the count, if it does not exceed its limit
+            if ret[add_one_flavor_count]["current"] < ret[add_one_flavor_count]["max"]:
+                ret[add_one_flavor_count]["current"] += 1
+        if reduce_one_flavor_count and reduce_one_flavor_count in ret.keys():
+            # We may want to send an update to JHub before we've stopped the service
+            # Reduce this value from the count, if it does not exceed its limit
+            if ret[reduce_one_flavor_count]["current"] > 0:
+                ret[reduce_one_flavor_count]["current"] -= 1
         return ret
 
     async def _outpostspawner_send_flavor_update(
-        self, db, service_name, jupyterhub_name, flavor_update_url
+        self,
+        db,
+        service_name,
+        jupyterhub_name,
+        flavor_update_url,
+        add_one_flavor_count=None,
+        reduce_one_flavor_count=None,
     ):
         try:
             token = await self.get_flavors_update_token(jupyterhub_name)
@@ -415,7 +437,9 @@ class JupyterHubOutpost(Application):
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
-        body = await self._outpostspawner_get_flavor_values(db, jupyterhub_name)
+        body = await self._outpostspawner_get_flavor_values(
+            db, jupyterhub_name, add_one_flavor_count, reduce_one_flavor_count
+        )
 
         req = HTTPRequest(
             url=flavor_update_url,

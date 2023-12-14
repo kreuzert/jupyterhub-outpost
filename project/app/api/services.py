@@ -94,14 +94,6 @@ async def full_stop_and_remove(
     except:
         spawner.log.exception(f"{spawner._log_name} - Stop failed.")
     finally:
-        try:
-            await wrapper._outpostspawner_send_flavor_update(
-                db, service_name, jupyterhub_name, flavor_update_url
-            )
-        except:
-            spawner.log.exception(
-                f"{spawner._log_name} - Could not send flavor update to {jupyterhub_name}."
-            )
         remove_spawner(jupyterhub_name, service_name, start_id)
     try:
         service = get_service(jupyterhub_name, service_name, start_id, db)
@@ -110,6 +102,16 @@ async def full_stop_and_remove(
     except Exception as e:
         log.debug(
             f"{jupyterhub_name}-{service_name} - Could not delete service from database"
+        )
+
+    # Send update after service was deleted from db
+    try:
+        await wrapper._outpostspawner_send_flavor_update(
+            db, service_name, jupyterhub_name, flavor_update_url
+        )
+    except:
+        spawner.log.exception(
+            f"{spawner._log_name} - Could not send flavor update to {jupyterhub_name}."
         )
 
 
@@ -216,6 +218,36 @@ async def delete_service(
                 break
 
         log.info(f"{jupyterhub_name}-{service_name} - Forward {state} to stop")
+
+        try:
+            # Send update before deleting service.
+            # Otherwise hub might use deprecated information
+            auth_state = get_auth_state(request.headers)
+            spawner = await get_spawner(
+                jupyterhub_name,
+                service_name,
+                start_id,
+                body,
+                auth_state,
+                state,
+            )
+            flavor_update_url = spawner.get_env().get(
+                "JUPYTERHUB_FLAVORS_UPDATE_URL", ""
+            )
+            # Reduce number of <flavor> by one, since it will be deleted soon
+            wrapper = get_wrapper()
+            await wrapper._outpostspawner_send_flavor_update(
+                db,
+                service_name,
+                jupyterhub_name,
+                flavor_update_url,
+                reduce_one_flavor_count=service.flavor,
+            )
+        except:
+            spawner.log.exception(
+                f"{spawner._log_name} - Could not send flavor update to {jupyterhub_name}."
+            )
+
         task = asyncio.create_task(
             full_stop_and_remove(
                 jupyterhub_name,
@@ -286,20 +318,21 @@ async def add_service(
     db.add(new_service)
     db.commit()
 
+    start_id = service.start_id
+    remove_spawner(jupyterhub_name, service.name, start_id)
+    spawner = await get_spawner(
+        jupyterhub_name,
+        service.name,
+        start_id,
+        decrypt(service.body),
+        get_auth_state(request.headers),
+        certs,
+        internal_trust_bundles,
+    )
+    flavor_update_url = spawner.get_env().get("JUPYTERHUB_FLAVORS_UPDATE_URL", "")
+
     async def async_start():
         # remove spawner from wrapper to ensure it's using the current config
-        start_id = service.start_id
-        remove_spawner(jupyterhub_name, service.name, start_id)
-        spawner = await get_spawner(
-            jupyterhub_name,
-            service.name,
-            start_id,
-            decrypt(service.body),
-            get_auth_state(request.headers),
-            certs,
-            internal_trust_bundles,
-        )
-        flavor_update_url = spawner.get_env().get("JUPYTERHUB_FLAVORS_UPDATE_URL", "")
         try:
             ret = await spawner._outpostspawner_db_start(db)
         except Exception as e:
@@ -328,9 +361,15 @@ async def add_service(
             return ret
 
     if request.headers.get("execution-type", "sync") == "async":
+        # Send update already at this point before actually starting the service.
+        # Otherwise Hub might use deprecated data
+        await wrapper._outpostspawner_send_flavor_update(
+            db, service.name, jupyterhub_name, flavor_update_url
+        )
         task = asyncio.create_task(async_start())
         background_tasks.add(task)
         task.add_done_callback(background_tasks.discard)
+
         return JSONResponse(content={"service": ""}, status_code=202)
     else:
         ret = await async_start()
