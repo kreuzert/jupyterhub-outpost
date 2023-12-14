@@ -74,7 +74,7 @@ async def check_running_services():
                                 f"PeriodicCheck - {service['name']} is no longer running at {service['jupyterhub']}. Stop it."
                             )
                             try:
-                                full_stop_and_remove(
+                                await full_stop_and_remove(
                                     service["jupyterhub"],
                                     service["name"],
                                     service["start_id"],
