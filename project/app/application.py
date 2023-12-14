@@ -75,7 +75,10 @@ async def check_running_services():
                             )
                             try:
                                 full_stop_and_remove(
-                                    service["jupyterhub"], service["name"], db
+                                    service["jupyterhub"],
+                                    service["name"],
+                                    service["start_id"],
+                                    db,
                                 )
                             except:
                                 log.exception(
