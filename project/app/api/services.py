@@ -61,7 +61,7 @@ async def full_stop_and_remove(
                 log.info(
                     f"{jupyterhub_name} - {service_name} is already stopping. No need to stop it twice"
                 )
-                service.delete()
+                db.delete(service)
                 db.commit()
                 return
         except:
@@ -105,7 +105,7 @@ async def full_stop_and_remove(
         remove_spawner(jupyterhub_name, service_name, start_id)
     try:
         service = get_service(jupyterhub_name, service_name, start_id, db)
-        service.delete()
+        db.delete(service)
         db.commit()
     except Exception as e:
         log.debug(
