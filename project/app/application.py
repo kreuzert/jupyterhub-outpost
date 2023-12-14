@@ -50,6 +50,7 @@ async def check_running_services():
                                 "Authorization": f"token {jhub_cleanup_tokens_list[i]}",
                                 "Accept": "application/json",
                             },
+                            timeout=3,
                         )
                         r.raise_for_status()
                         running_services_in_jhub[jhub_cleanup_name] = r.json()
@@ -63,12 +64,8 @@ async def check_running_services():
                     finally:
                         i += 1
                 all_services = get_services_all(db=db)
-                log.debug(f"PeriodicCheck - Check for all services: {all_services}")
                 for service in all_services:
                     if service["jupyterhub"] in running_services_in_jhub.keys():
-                        log.debug(
-                            f"PeriodicCheck - Service jhub credential ( {service['jupyterhub']} ) is in list, check it"
-                        )
                         if (
                             f"{service['jupyterhub_userid']}_{service['name']}_{service['start_id']}"
                             not in running_services_in_jhub[service["jupyterhub"]]
@@ -84,14 +81,6 @@ async def check_running_services():
                                 log.exception(
                                     "PeriodicCheck - Could not stop / delete service object"
                                 )
-                        else:
-                            log.debug(
-                                f"PeriodicCheck - {service['name']} is still running"
-                            )
-                    else:
-                        log.warning(
-                            f"PeriodicCheck - {service['jupyterhub']} is not in running_services_list. Configure it in environment variables JUPYTERHUB_CLEANUP_NAMES, JUPYTERHUB_CLEANUP_URLS and JUPYTERHUB_CLEANUP_TOKENS to enabled internal cleanup feature."
-                        )
             except:
                 log.exception(
                     "PeriodicCheck - Unexpected error in internal cleanup service"
@@ -99,6 +88,10 @@ async def check_running_services():
             finally:
                 db.close()
                 await asyncio.sleep(30)
+    else:
+        log.info(
+            "PeriodicCheck - environment variables JUPYTERHUB_CLEANUP_NAMES, JUPYTERHUB_CLEANUP_URLS and JUPYTERHUB_CLEANUP_TOKENS not set. Do not run periodic cleanup check in background."
+        )
 
 
 async def check_enddates():
