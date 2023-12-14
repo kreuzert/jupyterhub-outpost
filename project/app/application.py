@@ -137,6 +137,11 @@ def sync_check_enddates(loop):
     loop.run_until_complete(check_enddates())
 
 
+def sync_check_services(loop):
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(check_running_services())
+
+
 wrapper = get_wrapper()
 wrapper.init_logging()
 wrapper.update_logging()
@@ -148,6 +153,9 @@ def create_application() -> FastAPI:
     proc = multiprocessing.Process(target=sync_check_enddates, args=(loop,))
     background_tasks.append(proc)
     proc.start()
+    proc = multiprocessing.Process(target=sync_check_services, args=(loop,))
+    background_tasks.append(proc)
+    proc.start()
     application = FastAPI()
     application.include_router(services_router)
     application.add_middleware(
@@ -157,7 +165,7 @@ def create_application() -> FastAPI:
         allow_headers=["*"],
         allow_credentials=True,
     )
-    log.info("Start JupyterHubOutpost ( (55ed4c44))")
+    log.info("Start JupyterHubOutpost")
     return application
 
 
