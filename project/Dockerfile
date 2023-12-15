@@ -13,6 +13,7 @@ COPY ./project/requirements_apk.txt /src/requirements_apk.txt
 COPY ./project/requirements_pip.txt /src/requirements_pip.txt
 RUN apk add --virtual=build_dependencies build-base && \
     cat /src/requirements_apk.txt | xargs apk add && \
+    pip install -U pip && \
     pip install --no-cache-dir --upgrade -r /src/requirements_pip.txt && \
     apk del --purge -r build_dependencies && \
     chown -R ${USERNAME}:users ${HOME} && \
