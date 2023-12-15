@@ -7,7 +7,7 @@ jupyter-server==2.12.1
 jsonformatter==0.3.2
 kubernetes==28.1.0
 passlib==1.7.4
-"psycopg[binary]"
+psycopg[binary]
 python-multipart==0.0.6
 sqlalchemy==2.0.23
 traitlets==5.14.0
