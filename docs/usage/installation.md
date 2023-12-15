@@ -1,6 +1,6 @@
 # Installation 
 
-This section covers example configurations and instructions to install the [JupyterHub Outpost service](https://artifacthub.io/packages/helm/jupyterhub-outpost/jupyterhub-outpost) via helm. 
+This section covers example configurations and instructions to install the [JupyterHub Outpost service](https://artifacthub.io/packages/helm/jupyter-jsc/jupyterhub-outpost) via helm. 
 
 ## Local installation
 
