@@ -520,23 +520,24 @@ class JupyterHubOutpost(Application):
                     except asyncio.CancelledError:
                         pass
 
-                await asyncio.wait([self._spawn_future])
                 self._spawn_pending = False
 
             async def _outpostspawner_db_start(self, db):
                 wrapper.update_logging()
                 self.log.info(f"{self._log_name} - Start service")
 
-                self._spawn_future = asyncio.ensure_future(
-                    self._outpostspawner_db_start_call(db)
-                )
-
                 forward_future = None
                 send_events = await wrapper.get_send_events(self.jupyterhub_name)
                 if self.get_env().get("JUPYTERHUB_EVENTS_URL", "") and send_events:
-                    forward_future = self._outpostspawner_forward_events()
+                    forward_future = asyncio.create_task(
+                        self._outpostspawner_forward_events()
+                    )
 
-                await asyncio.wait([self._spawn_future])
+                self._spawn_future = asyncio.create_task(
+                    self._outpostspawner_db_start_call(db)
+                )
+
+                await self._spawn_future
                 if forward_future:
                     await forward_future
                 try:
@@ -583,21 +584,20 @@ class JupyterHubOutpost(Application):
                 wrapper.update_logging()
                 self.log.debug(f"{self._log_name} - Poll service")
 
-                # wait up to 5 seconds until the state is stored
-                until = time.time() + 5
-                while time.time() < until:
-                    service = get_service(jupyterhub_name, self.name, self.start_id, db)
-                    if service.state_stored:
-                        self.log.debug(
-                            f"{self._log_name} - Load state from database: {decrypt(service.state)}"
-                        )
-                        self.load_state(decrypt(service.state))
-                        break
-                    else:
-                        self.log.debug(
-                            f"{self._log_name} - Wait for load until state is stored"
-                        )
-                        await asyncio.sleep(1)
+                service = get_service(jupyterhub_name, self.name, self.start_id, db)
+                if not service.state_stored:
+                    self.log.debug(
+                        f"{self._log_name} - Start function not finished yet. Return None"
+                    )
+                    return None
+
+                try:
+                    self.load_state(decrypt(service.state))
+                except:
+                    self.log.exception(
+                        f"{self._log_name} - Could not load state. Return None"
+                    )
+                    return None
 
                 ret = self.poll()
                 if inspect.isawaitable(ret):
