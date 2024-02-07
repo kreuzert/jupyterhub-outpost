@@ -325,6 +325,38 @@ class JupyterHubOutpost(Application):
             flavors_update_token = self.flavors_update_token
         return flavors_update_token
 
+    authorization = Any(
+        default_value=None,
+        config=True,
+        help="""
+        An optional hook to offer resources specific for each user. JupyterHub
+        name and authentication dict will be send to this function. Allowed return
+        values: true (allow all flavors / resources. Default), false (User is
+        not allowed to use this Outpost), set (set of allowed flavors for this user).
+        
+        May be a coroutine.
+        
+        Example::
+        
+            async def authorize(jupyterhub_name, auth_dict):
+                if jupyterhub_name == "hub1":
+                    if auth_dict.get("username", "").endswith("mycompany.org"):
+                        return True
+                    else:
+                        return {"1gbflavor", "2gbflavor"}
+                return False
+        """,
+    )
+
+    async def run_authorization(self, jupyterhub_name, auth_dict):
+        if self.authorization:
+            auth = self.authorization(jupyterhub_name, auth_dict)
+            if inspect.isawaitable(auth):
+                auth = await auth
+            return auth
+        else:
+            return True
+
     send_events = Any(
         default_value=True,
         config=True,

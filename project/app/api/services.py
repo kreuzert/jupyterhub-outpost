@@ -1,4 +1,5 @@
 import asyncio
+import json
 import time
 from typing import Annotated
 from typing import List
@@ -376,10 +377,14 @@ async def add_service(
         return JSONResponse(content={"service": ret}, status_code=200)
 
 
-## Configuration für flavors (Traitlets) hinzufügen
-## Tests schreiben:
-# 1. flavor taucht in Datenbank auf
-# 2. Configuration funktioniert
-# 3. Certs werden gelöscht, wenn spawner aus mem gelöscht wurde
-# 4. reached max flavor wirft sinnvolle Exception
-# 5. failed start function -> no service / spawner left in db/mem
+@router.post("/authorization")
+@catch_exception
+async def authorize(
+    jupyterhub_name: Annotated[HTTPBasicCredentials, Depends(verify_user)],
+    request: Request,
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    user_auth = await request.json()
+    wrapper = get_wrapper()
+    ret = await wrapper.run_authorization(jupyterhub_name, user_auth)
+    return JSONResponse(content=ret, status_code=200)
