@@ -56,11 +56,17 @@ async def flavors_update_token(jupyterhub_name):
 c.JupyterHubOutpost.flavors_update_token = flavors_update_token
 
 
-async def authorization(jupyterhub_name, auth_dict):
+async def userflavors(outpost, jupyterhub_name, auth_dict):
     if auth_dict.get("username", "").endswith("mycomp.org"):
-        return ["my", "flavors"]
+        import copy
+
+        default_flavors = await outpost.get_flavors(jupyterhub_name)
+        specific_flavors = copy.deepcopy(default_flavors)
+        for key in specific_flavors.keys():
+            specific_flavors[key]["max"] -= 1
+        return specific_flavors
     else:
         return False
 
 
-c.JupyterHubOutpost.authorization = authorization
+c.JupyterHubOutpost.user_flavors = userflavors

@@ -325,35 +325,49 @@ class JupyterHubOutpost(Application):
             flavors_update_token = self.flavors_update_token
         return flavors_update_token
 
-    authorization = Any(
+    user_flavors = Any(
         default_value=None,
         config=True,
         help="""
         An optional hook to offer resources specific for each user. JupyterHub
         name and authentication dict will be send to this function. Allowed return
         values: true (allow all flavors / resources. Default), false (User is
-        not allowed to use this Outpost), set (set of allowed flavors for this user).
+        not allowed to use this Outpost), dict (dict of flavors for this user).
         
         May be a coroutine.
         
         Example::
         
-            async def authorize(jupyterhub_name, auth_dict):
+            async def user_flavors(jhub_outpost, jupyterhub_name, auth_dict):
                 if jupyterhub_name == "hub1":
                     if auth_dict.get("username", "").endswith("mycompany.org"):
                         return True
                     else:
-                        return {"1gbflavor", "2gbflavor"}
+                        # get the default flavors
+                        # be careful to not manipulate the default flavors for all users
+                        import copy
+                        default_flavors = await jhub_outpost.get_flavors(jupyterhub_name)
+                        specific_flavors = copy.deepcopy(default_flavors)
+                        
+                        # Users from other companies are not allowed to use the
+                        # resource intensive flavor
+                        if "16gbflavor" in specific_flavors.keys():
+                            del specific_flavors["16gbflavor"]
+                        return specific_flavors
+                # Only users of hub1 are allowed to use this outpost
+                # Can also be configured in c.JupyterHubOutpost.flavors
                 return False
+            
+            c.JupyterHubOutpost.user_flavors = user_flavors
         """,
     )
 
-    async def run_authorization(self, jupyterhub_name, auth_dict):
-        if self.authorization:
-            auth = self.authorization(jupyterhub_name, auth_dict)
-            if inspect.isawaitable(auth):
-                auth = await auth
-            return auth
+    async def run_user_flavors(self, jupyterhub_name, auth_dict):
+        if self.user_flavors:
+            user_flavors = self.user_flavors(self, jupyterhub_name, auth_dict)
+            if inspect.isawaitable(user_flavors):
+                user_flavors = await user_flavors
+            return user_flavors
         else:
             return True
 

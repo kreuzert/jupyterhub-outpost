@@ -29,15 +29,30 @@ simple_direct = "./tests/test_routes/simple_direct.py"
 @pytest.mark.parametrize("spawner_config", [simple_authorization])
 def test_authorization(client):
     response = client.post(
-        "/authorization",
+        "/userflavors",
         json={"username": "user1@mycomp.org"},
         headers=headers_auth_user,
     )
     assert response.status_code == 200
-    assert response.json() == ["my", "flavors"]
+    assert response.json() == {
+        "typea": {
+            "max": 4,
+            "weight": 10,
+            "display_name": "2GB RAM, 1VCPU, 120 hours",
+            "description": "JupyterLab will run for max 120 hours with 2GB RAM and 1VCPU.",
+            "runtime": {"hours": 2},
+        },
+        "typeb": {
+            "max": 4,
+            "weight": 9,
+            "display_name": "4GB RAM, 1VCPUs, 12 hours",
+            "description": "JupyterLab will run for max 12 hours with 4GB RAM and 1VCPUs.",
+            "runtime": {"hours": 2},
+        },
+    }
 
     response2 = client.post(
-        "/authorization",
+        "/userflavors",
         json={"username": "user1@other.org"},
         headers=headers_auth_user,
     )
@@ -48,7 +63,7 @@ def test_authorization(client):
 @pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_authorization_default(client):
     response = client.post(
-        "/authorization", json={"username": "user1"}, headers=headers_auth_user
+        "/userflavors", json={"username": "user1"}, headers=headers_auth_user
     )
     assert response.status_code == 200
     assert response.json() == True

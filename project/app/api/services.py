@@ -377,14 +377,14 @@ async def add_service(
         return JSONResponse(content={"service": ret}, status_code=200)
 
 
-@router.post("/authorization")
+@router.post("/userflavors")
 @catch_exception
-async def authorize(
+async def userflavors(
     jupyterhub_name: Annotated[HTTPBasicCredentials, Depends(verify_user)],
     request: Request,
     db: Session = Depends(get_db),
 ) -> JSONResponse:
-    user_auth = await request.json()
+    user_authentication = await request.json()
     wrapper = get_wrapper()
-    ret = await wrapper.run_authorization(jupyterhub_name, user_auth)
+    ret = await wrapper.run_user_flavors(jupyterhub_name, user_authentication)
     return JSONResponse(content=ret, status_code=200)
