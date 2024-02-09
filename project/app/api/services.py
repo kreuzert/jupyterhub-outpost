@@ -297,9 +297,12 @@ async def add_service(
     # check if the chosen flavor is currently available, before adding the service to
     # the database
     wrapper = get_wrapper()
+
+    request_json = await request.json()
+    user_authentication = request_json.get("authentication", {})
     flavor = dec_body.get("user_options", {}).get("flavor", "_undefined")
     current_flavor_values = await wrapper._outpostspawner_get_flavor_values(
-        db, jupyterhub_name
+        db, jupyterhub_name, user_authentication
     )
     if flavor in current_flavor_values.keys():
         current_flavor_value = current_flavor_values.get(flavor, {}).get("current", 0)
@@ -386,5 +389,7 @@ async def userflavors(
 ) -> JSONResponse:
     user_authentication = await request.json()
     wrapper = get_wrapper()
-    ret = await wrapper.run_user_flavors(jupyterhub_name, user_authentication)
+    ret = await wrapper._outpostspawner_get_flavor_values(
+        db, jupyterhub_name, user_authentication
+    )
     return JSONResponse(content=ret, status_code=200)

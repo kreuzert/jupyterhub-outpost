@@ -412,10 +412,29 @@ class JupyterHubOutpost(Application):
         self,
         db,
         jupyterhub_name,
+        user_authentication={},
         add_one_flavor_count=None,
         reduce_one_flavor_count=None,
     ):
-        configured_flavors = await self.get_flavors(jupyterhub_name)
+        default_flavors = await self.get_flavors(jupyterhub_name)
+        configured_flavors = copy.deepcopy(default_flavors)
+        if user_authentication:
+            user_specific_flavors = await self.run_user_flavors(
+                jupyterhub_name, user_authentication
+            )
+            if type(user_specific_flavors) == bool and not user_specific_flavors:
+                # This user is not allowed at all
+                return {
+                    "_undefined": {
+                        "max": 0,
+                        "current": 0,
+                        "display_name": "default flavor",
+                        "weight": 1,
+                    }
+                }
+            elif type(user_specific_flavors) == dict:
+                # Override user specific flavors
+                configured_flavors = copy.deepcopy(user_specific_flavors)
         flavors = (
             db.query(
                 service_model.Service.flavor,
