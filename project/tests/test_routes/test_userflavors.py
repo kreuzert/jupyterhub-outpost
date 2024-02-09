@@ -37,6 +37,7 @@ def test_authorization(client):
     assert response.json() == {
         "typea": {
             "max": 4,
+            "current": 0,
             "weight": 10,
             "display_name": "2GB RAM, 1VCPU, 120 hours",
             "description": "JupyterLab will run for max 120 hours with 2GB RAM and 1VCPU.",
@@ -44,10 +45,17 @@ def test_authorization(client):
         },
         "typeb": {
             "max": 4,
+            "current": 0,
             "weight": 9,
             "display_name": "4GB RAM, 1VCPUs, 12 hours",
             "description": "JupyterLab will run for max 12 hours with 4GB RAM and 1VCPUs.",
             "runtime": {"hours": 2},
+        },
+        "_undefined": {
+            "current": 0,
+            "display_name": "default flavor",
+            "max": 0,
+            "weight": 1,
         },
     }
 
@@ -57,7 +65,14 @@ def test_authorization(client):
         headers=headers_auth_user,
     )
     assert response2.status_code == 200
-    assert response2.json() == False
+    assert response2.json() == {
+        "_undefined": {
+            "current": 0,
+            "display_name": "default flavor",
+            "max": 0,
+            "weight": 1,
+        }
+    }
 
 
 @pytest.mark.parametrize("spawner_config", [simple_direct])
@@ -66,4 +81,12 @@ def test_authorization_default(client):
         "/userflavors", json={"username": "user1"}, headers=headers_auth_user
     )
     assert response.status_code == 200
-    assert response.json() == True
+    # _undefined.max =-1 > can use everything
+    assert response.json() == {
+        "_undefined": {
+            "current": 0,
+            "display_name": "default flavor",
+            "max": -1,
+            "weight": 1,
+        }
+    }
