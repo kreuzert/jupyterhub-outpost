@@ -434,6 +434,12 @@ class JupyterHubOutpost(Application):
                 }
             elif type(user_specific_flavors) == dict:
                 # Override user specific flavors
+                if not set(user_specific_flavors.keys()) <= set(
+                    configured_flavors.keys()
+                ):
+                    self.log.warning(
+                        f"The user specific flavors should be a subset of the default flavors. It is used anyway, but the flavors might not work as expected. ({set(user_specific_flavors.keys())} <= {set(configured_flavors.keys())})"
+                    )
                 configured_flavors = copy.deepcopy(user_specific_flavors)
         flavors = (
             db.query(
