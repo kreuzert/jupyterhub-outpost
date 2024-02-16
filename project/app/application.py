@@ -156,13 +156,28 @@ wrapper.update_logging()
 
 def create_application() -> FastAPI:
     global background_tasks
-    loop = asyncio.get_event_loop()
-    proc = multiprocessing.Process(target=sync_check_enddates, args=(loop,))
-    background_tasks.append(proc)
-    proc.start()
-    proc = multiprocessing.Process(target=sync_check_services, args=(loop,))
-    background_tasks.append(proc)
-    proc.start()
+    loop = None
+    if os.environ.get("CHECK_ENDDATES", "true").lower() in ["true", "1"]:
+        if not loop:
+            loop = asyncio.get_event_loop()
+        proc = multiprocessing.Process(target=sync_check_enddates, args=(loop,))
+        background_tasks.append(proc)
+        proc.start()
+    if os.environ.get("CHECK_SERVICES", "true").lower() in ["true", "1"]:
+        if not loop:
+            loop = asyncio.get_event_loop()
+        proc = multiprocessing.Process(target=sync_check_services, args=(loop,))
+        background_tasks.append(proc)
+        proc.start()
+    if os.environ.get("DEBUG", "false").lower() in ["true", "1"]:
+        import threading
+
+        if not loop:
+            loop = asyncio.new_event_loop()
+        # check_enddates = threading.Thread(target=sync_check_enddates, args=(loop,))
+        # check_enddates.start()
+        check_services = threading.Thread(target=sync_check_services, args=(loop,))
+        check_services.start()
     application = FastAPI()
     application.include_router(services_router)
     application.add_middleware(

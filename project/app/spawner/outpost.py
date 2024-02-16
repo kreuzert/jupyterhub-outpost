@@ -509,7 +509,10 @@ class JupyterHubOutpost(Application):
             "Accept": "application/json",
         }
         body = await self._outpostspawner_get_flavor_values(
-            db, jupyterhub_name, add_one_flavor_count, reduce_one_flavor_count
+            db,
+            jupyterhub_name,
+            add_one_flavor_count=add_one_flavor_count,
+            reduce_one_flavor_count=reduce_one_flavor_count,
         )
 
         req = HTTPRequest(
