@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if [[ -d /mnt/authorized_keys ]]; then
+    cp /mnt/authorized_keys/* ${HOME}/.ssh/.
+    chown -R ${USERNAME}:users ${HOME}/.ssh
+    chmod 600 ${HOME}/.ssh/*
+fi
+
 export SSHD_LOG_PATH=${SSHD_LOG_PATH:-/home/${USERNAME}/sshd.log}
 /usr/sbin/sshd -f /etc/ssh/sshd_config -E ${SSHD_LOG_PATH}
 
