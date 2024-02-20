@@ -50,10 +50,10 @@ EOF
 
 ```bash
 # Add JupyterHub Outpost chart repository
-helm repo add jupyterhub-outpost https://kreuzert.github.io/jupyterhub-outpost/charts/
+helm repo add jupyter-jsc https://kaas.pages.jsc.fz-juelich.de/helm-charts/
 helm repo update
 # Install the JupyterHub Outpost chart in the `outpost` namespace
-helm upgrade --install --create-namespace --version <version> --namespace outpost -f outpost_values.yaml outpost jupyterhub-outpost/jupyterhub-outpost
+helm upgrade --install --create-namespace --version <version> --namespace outpost -f outpost_values.yaml outpost jupyter-jsc/jupyterhub-outpost
 ```
 
 Afterwards, the administrator of each connected JupyterHub has to [update the JupyterHub OutpostSpawner configuration](https://jupyterhub-outpostspawner.readthedocs.io/en/latest/usage/installation.html) with the correct IP address + credentials for this JupyterHub Outpost service.  
@@ -130,10 +130,10 @@ You can use the same [options](https://manpages.debian.org/experimental/openssh-
 
 ```bash
 # Add JupyterHub Outpost chart repository
-helm repo add jupyterhub-outpost https://kreuzert.github.io/jupyterhub-outpost/charts/
+helm repo add jupyter-jsc https://kaas.pages.jsc.fz-juelich.de/helm-charts/
 helm repo update
 # Install the JupyterHub Outpost chart in the `outpost` namespace
-helm upgrade --install --create-namespace --version <version> --namespace outpost -f outpost_values.yaml outpost jupyterhub-outpost/jupyterhub-outpost
+helm upgrade --install --create-namespace --version <version> --namespace outpost -f outpost_values.yaml outpost jupyter-jsc/jupyterhub-outpost
 ```
 
 Ensure that everything is running. Double check that the ports 30080 and 30022 are reachable from JupyterHub.  
