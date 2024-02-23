@@ -1,0 +1,48 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: FastAPI",
+            "type": "python",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "--app-dir",
+                "app",
+                "--reload",
+                "--proxy-headers",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8080",
+                "main:app"
+            ],
+            "jinja": true,
+            "justMyCode": false,
+            "env": {
+                "OUTPOST_CONFIG_FILE": "/home/jhuboutpost/outpost_config.py",
+                "LOGGING_CONFIG_PATH": "/mnt/outpost_config/logging_config.yaml",
+                "OUTPOST_CRYPT_KEY": "<crypt_key>",
+                "KUBERNETES_SERVICE_HOST": "<KUBERNETES_SERVICE_HOST>",
+                "KUBERNETES_SERVICE_PORT": "<KUBERNETES_SERVICE_PORT>",
+                "SQL_PASSWORD": "<SQL_PASSWORD>",
+                "SQL_DATABASE": "<SQL_DATABASE>",
+                "SQL_HOST": "<SQL_HOST>",
+                "SQL_PORT": "<SQL_PORT>",
+                "SQL_USER": "<SQL_USER>",
+                "SQL_TYPE": "<SQL_TYPE>",
+                "usernames": "<usernames>",
+                "passwords": "<passwords>",
+                "STAGE": "staging",
+                "CHECK_ENDDATES": "false",
+                "CHECK_SERVICES": "false",
+                "DEBUG": "true",
+                "JUPYTERHUB_CLEANUP_NAMES": "<JUPYTERHUB_CLEANUP_NAMES>",
+                "JUPYTERHUB_CLEANUP_TOKENS": "<JUPYTERHUB_CLEANUP_TOKENS>",
+                "JUPYTERHUB_CLEANUP_URLS": "<JUPYTERHUB_CLEANUP_URLS>",
+                "FLAVOR_DEV1_AUTH_TOKEN": "<FLAVOR_DEV1_AUTH_TOKEN>",
+                "FLAVOR_DEV2_AUTH_TOKEN": "<FLAVOR_DEV2_AUTH_TOKEN>"
+            }
+        }
+    ]
+}
