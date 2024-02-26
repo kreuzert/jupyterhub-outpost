@@ -1,0 +1,9 @@
+{
+    "terminal.integrated.env.windows": {
+        "PYTHONPATH": "${workspaceFolder};${workspaceFolder}/tests"
+    },
+    "python.analysis.extraPaths": ["${workspaceFolder}/app"],
+    "python.testing.pytestPath": "pytest",
+    "python.testing.pytestEnabled": true,
+    "python.testing.unittestEnabled": false
+}
