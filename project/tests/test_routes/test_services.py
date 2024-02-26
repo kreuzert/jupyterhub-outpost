@@ -214,7 +214,7 @@ def not_yet_test_404_patch(client):
 
 @pytest.mark.parametrize("spawner_config", [simple_direct])
 def test_create_start_sanitize_default(client):
-    response = client.post("/services", json={"name": 0}, headers=headers_auth_user)
+    response = client.post("/services", json={"name": "0"}, headers=headers_auth_user)
     assert response.json().get("service", "") == "127.0.0.1:4567"
 
 
