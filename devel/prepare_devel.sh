@@ -1,6 +1,5 @@
 #!/bin/bash
 
-KUBECONFIG=...
 NAMESPACE=outpost
 
 POD_NAME=$(kubectl -n ${NAMESPACE} get pods --selector app.kubernetes.io/instance=kube -o jsonpath='{.items..metadata.name}')
