@@ -33,7 +33,6 @@ fi
 
 cd ${HOME}/app
 su ${USERNAME}
-pip install jupyterhub-kubespawner kubernetes
 
 while true; do
     sleep 30
