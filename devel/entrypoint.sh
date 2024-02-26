@@ -31,6 +31,10 @@ if [ "$SQL_TYPE" == "postgresql" ]; then
     echo "$(date) PostgreSQL started"
 fi
 
+cd ${HOME}/app
+su ${USERNAME}
+pip install jupyterhub-kubespawner kubernetes
+
 while true; do
     sleep 30
 done
