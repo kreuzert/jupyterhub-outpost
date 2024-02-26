@@ -9,9 +9,15 @@ export SSHD_LOG_PATH=${SSHD_LOG_PATH:-/home/${USERNAME}/sshd.log}
 mkdir -p /home/${USERNAME}/.ssh
 chmod 755 /home/${USERNAME}/.ssh
 
+cp /mnt/outpost_config/outpost_config.py /home/${USERNAME}/app/outpost_config.py
+cp /mnt/outpost_config/logging_config.yaml /home/${USERNAME}/app/logging_config.yaml
+chmod 644 /home/${USERNAME}/app/outpost_config.py
+chmod 644 /home/${USERNAME}/app/logging_config.yaml
+
 mkdir -p /home/${USERNAME}/app/.vscode
 chmod 755 /home/${USERNAME}/app/.vscode
 chown -R ${USERNAME}:users /home/${USERNAME}
+
 
 # Set secret key
 export SECRET_KEY=${SECRET_KEY:-$(uuidgen)}

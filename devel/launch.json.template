@@ -20,8 +20,8 @@
             "jinja": true,
             "justMyCode": false,
             "env": {
-                "OUTPOST_CONFIG_FILE": "/home/jhuboutpost/outpost_config.py",
-                "LOGGING_CONFIG_PATH": "/mnt/outpost_config/logging_config.yaml",
+                "OUTPOST_CONFIG_FILE": "/home/jhuboutpost/app/outpost_config.py",
+                "LOGGING_CONFIG_PATH": "/home/jhuboutpost/app/logging_config.yaml",
                 "OUTPOST_CRYPT_KEY": "<crypt_key>",
                 "KUBERNETES_SERVICE_HOST": "<KUBERNETES_SERVICE_HOST>",
                 "KUBERNETES_SERVICE_PORT": "<KUBERNETES_SERVICE_PORT>",
