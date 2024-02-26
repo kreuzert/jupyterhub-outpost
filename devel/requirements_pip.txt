@@ -5,7 +5,7 @@ jupyterhub-kubespawer==6.2.0
 jupyter-core==5.7.1
 jupyter-server==2.12.5
 jsonformatter==0.3.2
-kubernetes=28.1.0
+kubernetes==28.1.0
 passlib==1.7.4
 psutil==5.9.8
 psycopg2-binary==2.9.9
