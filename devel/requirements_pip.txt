@@ -1,7 +1,7 @@
 fastapi==0.110.0
 httpx==0.27.0
 jupyterhub==4.0.2
-jupyterhub-kubespawer==6.2.0
+jupyterhub-kubespawner==6.2.0
 jupyter-core==5.7.1
 jupyter-server==2.12.5
 jsonformatter==0.3.2
