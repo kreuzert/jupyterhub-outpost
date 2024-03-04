@@ -422,6 +422,9 @@ class JupyterHubOutpost(Application):
             user_specific_flavors = await self.run_user_flavors(
                 jupyterhub_name, user_authentication
             )
+            self.log.debug(
+                f"flavors for {jupyterhub_name} - Get flavors for specific user for {jupyterhub_name} - {user_specific_flavors}"
+            )
             if type(user_specific_flavors) == bool and not user_specific_flavors:
                 # This user is not allowed at all
                 return {
@@ -450,6 +453,9 @@ class JupyterHubOutpost(Application):
             .filter(service_model.Service.stop_pending == False)
             .group_by(service_model.Service.flavor)
         )
+        self.log.debug(
+            f"flavors for {jupyterhub_name} - Currently all flavors in database (stopping services not included): {flavors}"
+        )
         undefined_max = await self.get_flavors_undefined_max(jupyterhub_name)
         ret = {
             "_undefined": {
@@ -474,13 +480,22 @@ class JupyterHubOutpost(Application):
         if add_one_flavor_count and add_one_flavor_count in ret.keys():
             # We may want to send an update to JHub before we've started the service
             # Add this value to the count, if it does not exceed its limit
+            self.log.debug(
+                f"flavors for {jupyterhub_name} - Add count by one for {add_one_flavor_count}"
+            )
             if ret[add_one_flavor_count]["current"] < ret[add_one_flavor_count]["max"]:
                 ret[add_one_flavor_count]["current"] += 1
         if reduce_one_flavor_count and reduce_one_flavor_count in ret.keys():
+            self.log.debug(
+                f"flavors for {jupyterhub_name} - Remove count by one for {add_one_flavor_count}"
+            )
             # We may want to send an update to JHub before we've stopped the service
             # Reduce this value from the count, if it does not exceed its limit
             if ret[reduce_one_flavor_count]["current"] > 0:
                 ret[reduce_one_flavor_count]["current"] -= 1
+        self.log.debug(
+            f"flavors for {jupyterhub_name} - Return following flavors: {ret}"
+        )
         return ret
 
     async def _outpostspawner_send_flavor_update(
@@ -522,6 +537,9 @@ class JupyterHubOutpost(Application):
             headers=request_header,
             body=json.dumps(body),
             **self.get_request_kwargs(),
+        )
+        self.log.debug(
+            f"{service_name} - Send flavor update to {flavor_update_url} - {body}"
         )
         try:
             await self.http_client.fetch(req)
