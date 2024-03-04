@@ -447,6 +447,7 @@ class JupyterHubOutpost(Application):
                 func.count(service_model.Service.flavor),
             )
             .filter(service_model.Service.jupyterhub_username == jupyterhub_name)
+            .filter(service_model.Service.stop_pending == False)
             .group_by(service_model.Service.flavor)
         )
         undefined_max = await self.get_flavors_undefined_max(jupyterhub_name)
