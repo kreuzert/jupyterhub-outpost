@@ -1,6 +1,7 @@
 import asyncio
-import json
+import datetime
 import time
+import traceback
 from typing import Annotated
 from typing import List
 
@@ -66,7 +67,7 @@ async def full_stop_and_remove(
                 db.commit()
                 return
         except:
-            log.exception(
+            log.warning(
                 f"{jupyterhub_name} - {service_name} Does not exist. No need to stop it again"
             )
             return
@@ -335,12 +336,24 @@ async def add_service(
     )
     flavor_update_url = spawner.get_env().get("JUPYTERHUB_FLAVORS_UPDATE_URL", "")
 
-    async def async_start():
+    async def async_start(sync=True):
         # remove spawner from wrapper to ensure it's using the current config
         try:
             ret = await spawner._outpostspawner_db_start(db)
         except Exception as e:
             log.exception(f"{jupyterhub_name} - {service_name} - Could not start")
+            if not sync:
+                # Send cancel event to JupyterHub, otherwise JHub will never see
+                # an error, because this function is running async and the response
+                # was already sent to JHub
+                now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+                details = traceback.format_exc().replace("\n", "<br>")
+                event = {
+                    "failed": True,
+                    "progress": 100,
+                    "html_message": f"<details><summary>{now}: JupyterHub Outpost could not start service: {str(e)}</summary>{details}</details>",
+                }
+                await spawner._outpostspawner_send_event(event)
             try:
                 await full_stop_and_remove(
                     jupyterhub_name,
@@ -353,6 +366,15 @@ async def add_service(
                 log.exception(
                     f"{jupyterhub_name}-{service_name} - Could not stop and remove"
                 )
+            try:
+                # Send flavor update also for failed start attempts. Otherwise hubs
+                # will never retrieve the correct flavors, if their init_configuration
+                # is not set correctly
+                await wrapper._outpostspawner_send_flavor_update(
+                    db, service.name, jupyterhub_name, flavor_update_url
+                )
+            except:
+                pass
             raise e
         else:
             service_ = get_service(jupyterhub_name, service.name, start_id, db)
@@ -370,7 +392,7 @@ async def add_service(
         await wrapper._outpostspawner_send_flavor_update(
             db, service.name, jupyterhub_name, flavor_update_url
         )
-        task = asyncio.create_task(async_start())
+        task = asyncio.create_task(async_start(sync=False))
         background_tasks.add(task)
         task.add_done_callback(background_tasks.discard)
 
