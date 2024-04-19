@@ -1,9 +1,8 @@
 import asyncio
+import datetime
 import logging
 import multiprocessing
 import os
-from datetime import datetime
-from datetime import timezone
 
 import requests
 from api.services import full_stop_and_remove
@@ -49,7 +48,9 @@ async def check_running_services():
                 i = 0
                 for jhub_cleanup_name in jhub_cleanup_names:
                     # call request, check if it's running
-                    log.debug(f"PeriodicCheck - Call list servers {jhub_cleanup_name}.")
+                    log.debug(
+                        f"PeriodicCheck - Call list servers {jhub_cleanup_name} - {running_services_in_jhub[jhub_cleanup_name]}"
+                    )
                     try:
                         r = requests.get(
                             jhub_cleanup_urls_list[i],
@@ -70,9 +71,15 @@ async def check_running_services():
                 all_services = get_services_all(db=db)
                 for service in all_services:
                     if service["jupyterhub"] in running_services_in_jhub.keys():
+                        # Only check services which are running at least 30 minutes
                         if (
                             f"{service['jupyterhub_userid']}_{service['name']}_{service['start_id']}"
                             not in running_services_in_jhub[service["jupyterhub"]]
+                            and (
+                                datetime.datetime.now(datetime.UTC)
+                                - service["start_date"]
+                            ).total_seconds()
+                            > 1800
                         ):
                             log.info(
                                 f"PeriodicCheck - {service['name']} is no longer running at {service['jupyterhub']}. Stop it."
@@ -112,7 +119,7 @@ async def check_enddates():
     while True:
         try:
             log.debug("Periodic check for ended services")
-            now = datetime.now(timezone.utc)
+            now = datetime.datetime.now(datetime.timezone.utc)
             db = SessionLocal()
             services = get_services_all(jupyterhub_name=None, db=db)
             for service in services:
