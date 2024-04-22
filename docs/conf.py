@@ -16,6 +16,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "autodoc_traits",
     "myst_parser",
+    "m2r",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -24,8 +25,8 @@ templates_path = ["_templates"]
 # Set the default role so we can use `foo` instead of ``foo``
 default_role = "literal"
 
-# source_suffix = ['.rst', '.md']
-source_suffix = [".md"]
+source_suffix = [".rst", ".md"]
+# source_suffix = [".md"]
 
 # The root toctree document.
 root_doc = master_doc = "index"
