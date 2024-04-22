@@ -25,8 +25,8 @@ templates_path = ["_templates"]
 # Set the default role so we can use `foo` instead of ``foo``
 default_role = "literal"
 
-source_suffix = [".rst", ".md"]
-# source_suffix = [".md"]
+# source_suffix = [".rst", ".md"]
+source_suffix = []
 
 # The root toctree document.
 root_doc = master_doc = "index"
