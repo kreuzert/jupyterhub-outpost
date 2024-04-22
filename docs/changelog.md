@@ -1,3 +1,4 @@
+# Changelog
 ```{eval-rst}
-.. literalinclude:: ../LICENSE
+.. literalinclude:: ../CHANGELOG.md
 ```
