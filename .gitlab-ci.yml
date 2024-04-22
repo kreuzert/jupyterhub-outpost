@@ -39,7 +39,7 @@ build-devel:
     - /kaniko/executor --context ${CI_PROJECT_DIR} --dockerfile ${CI_PROJECT_DIR}/devel/Dockerfile --cache=true --cache-copy-layers=true --destination ${CI_REGISTRY_DOCKERHUB_BASEIMAGE}/${CI_PROJECT_NAME}:devel
   rules:
     - when: manual
-  allow_failure: false
+  allow_failure: true
 
 ###
 #
