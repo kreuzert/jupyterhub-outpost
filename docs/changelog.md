@@ -1,0 +1,3 @@
+```{eval-rst}
+.. literalinclude:: ../LICENSE
+```
