@@ -54,5 +54,5 @@ At least one JupyterHub running on a Kubernetes Cluster (recommended is the use 
     :maxdepth: 2
     :caption: Reference
 
-    changelog
+    changelog.rst
 ```
