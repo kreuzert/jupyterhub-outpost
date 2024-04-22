@@ -51,7 +51,8 @@ At least one JupyterHub running on a Kubernetes Cluster (recommended is the use 
 
 ```{eval-rst}
 .. toctree::
-    :maxdepth:2
+    :maxdepth: 2
     :caption: Reference
+
     ../CHANGELOG
 ```
