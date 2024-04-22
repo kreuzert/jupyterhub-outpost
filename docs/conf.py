@@ -15,7 +15,6 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     "autodoc_traits",
-    "m2r",
     "myst_parser",
 ]
 
