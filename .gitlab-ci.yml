@@ -122,4 +122,4 @@ release_job:
     assets:
       links:
         - name: 'Container Image $CI_COMMIT_TAG'
-          url: "https://hub.docker.com/r/jupyterjsc/jupyterhub-outpost:${CI_COMMIT_TAG}"
+          url: "https://hub.docker.com/r/jupyterjsc/jupyterhub-outpost/tags?page=&page_size=&ordering=&name=${CI_COMMIT_TAG}"
