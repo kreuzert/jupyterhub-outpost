@@ -1,4 +1,0 @@
-# Changelog
-```{eval-rst}
-.. literalinclude:: ../CHANGELOG.md
-```

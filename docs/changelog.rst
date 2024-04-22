@@ -1,0 +1,2 @@
+# Changelog
+.. include:: ../CHANGELOG.md
