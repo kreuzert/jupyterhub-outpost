@@ -48,9 +48,6 @@ async def check_running_services():
                 i = 0
                 for jhub_cleanup_name in jhub_cleanup_names:
                     # call request, check if it's running
-                    log.debug(
-                        f"PeriodicCheck - Call list servers {jhub_cleanup_name} - {running_services_in_jhub[jhub_cleanup_name]}"
-                    )
                     try:
                         r = requests.get(
                             jhub_cleanup_urls_list[i],
@@ -64,13 +61,16 @@ async def check_running_services():
                         running_services_in_jhub[jhub_cleanup_name] = r.json()
                     except:
                         log.exception(
-                            "PeriodicCheck - Could not check running services"
+                            f"PeriodicCheck - Could not check running services for {jhub_cleanup_name}"
                         )
                     finally:
                         i += 1
                 all_services = get_services_all(db=db)
                 for service in all_services:
                     if service["jupyterhub"] in running_services_in_jhub.keys():
+                        log.debug(
+                            f"PeriodicCheck - Servers at {service['jupyterhub']} - {running_services_in_jhub[service['jupyterhub']]}"
+                        )
                         # Only check services which are running at least 30 minutes
                         if (
                             f"{service['jupyterhub_userid']}_{service['name']}_{service['start_id']}"
