@@ -1,4 +1,5 @@
-# Changelog## 0.9.12 (2024-04-22)
+# Changelog
+## 0.9.12 (2024-04-22)
 
 ### added (2 changes)
 
