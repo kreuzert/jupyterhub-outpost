@@ -1,4 +1,5 @@
 autodoc-traits
+m2r
 sphinx-jsonschema
 sphinx-copybutton
 sphinx-book-theme
