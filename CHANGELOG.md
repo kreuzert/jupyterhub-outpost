@@ -10,6 +10,10 @@
 
 - [Merge branch 'kreuzer1-main-patch-95129' into 'main'](jupyterjsc/k8s/images/jupyterhub-outpost@93ec16357c8e98527d7a689f28b1e5ce6b334be6) ([merge request](jupyterjsc/k8s/images/jupyterhub-outpost!5))
 - [Merge branch 'kreuzer1-main-patch-91731' into 'main'](jupyterjsc/k8s/images/jupyterhub-outpost@62903d00956da318ad6394802f805ab69018f35f) ([merge request](jupyterjsc/k8s/images/jupyterhub-outpost!4))
+## 1.0.0 (2024-04-22)
+
+No changes.
+
 ## 0.9.13 (2024-04-22)
 
 ### added (1 change)
