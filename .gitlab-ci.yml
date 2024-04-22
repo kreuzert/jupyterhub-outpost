@@ -1,42 +1,34 @@
 stages:
-  - unittest
-  - build-short
-  - build-tag
-  - build-tag-docker
-  - build-devel
+  - test
+  - build
+  - prepare-release
+  - release
 
-workflow:
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-      when: never
-    - if: $CI_COMMIT_TAG
-      variables:
-        RUN_UNIT_TESTS: "True"
-        RUN_BUILD_DEVEL: "True"
-        RUN_BUILD_COMMIT_SHORT: "False"
-        LATEST_TAG: "latest"
-      # On tags we build an image on hub.docker.com
-      variables:
-        RUN_UNIT_TESTS: "True"
-        RUN_BUILD_DEVEL: "True"
-        RUN_BUILD_COMMIT_SHORT: "True"
-        LATEST_TAG: "dev"
-      # On development branches we run tests and build throw-away images
-    - when: never
-
+###
+#
+# Always run unittest
+#
+###
 unittests:
-  stage: unittest
+  stage: test
   image:
-    name: python:3.11-alpine3.18
+    name: python:alpine
   before_script:
     - apk add build-base linux-headers && pip3 install -U pip && pip3 install -r ${CI_PROJECT_DIR}/devel/requirements_pip.txt
   script:
     - cd ${CI_PROJECT_DIR}/project && pytest -c tests/pytest.ini
   rules:
-    - if: $RUN_UNIT_TESTS == "True"
+    - if: '$CI_COMMIT_MESSAGE !~ /^Add changelog for version.*/'
+
+
+###
+#
+# Creates an ubuntu based devel image, which can be used to debug the current Outpost version via VSCode
+#
+###
 
 build-devel:
-  stage: build-devel
+  stage: build
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
@@ -46,36 +38,16 @@ build-devel:
     - sed -i -e "s/<VERSION>/${CI_COMMIT_TAG} (${CI_COMMIT_SHORT_SHA})/g" ${CI_PROJECT_DIR}/project/app/application.py
     - /kaniko/executor --context ${CI_PROJECT_DIR} --dockerfile ${CI_PROJECT_DIR}/devel/Dockerfile --cache=true --cache-copy-layers=true --destination ${CI_REGISTRY_DOCKERHUB_BASEIMAGE}/${CI_PROJECT_NAME}:devel
   rules:
-    - if: $RUN_BUILD_DEVEL == "True"
+    - when: manual
 
-build-short:
-  stage: build-short
-  image:
-    name: gcr.io/kaniko-project/executor:debug
-    entrypoint: [""]
-  script:
-    - mkdir -p /kaniko/.docker
-    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(echo -n ${CI_REGISTRY_USER}:${CI_REGISTRY_PASSWORD} | base64)\"}}}" > /kaniko/.docker/config.json
-    - sed -i -e "s/<VERSION>/${LATEST_TAG} (${CI_COMMIT_SHORT_SHA})/g" ${CI_PROJECT_DIR}/project/app/application.py
-    - /kaniko/executor --context ${CI_PROJECT_DIR} --dockerfile ${CI_PROJECT_DIR}/project/Dockerfile --cache=true --cache-copy-layers=true --destination ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA} --destination ${CI_REGISTRY_IMAGE}:${LATEST_TAG}
-  rules:
-    - if: $RUN_BUILD_COMMIT_SHORT == "True"
-
-build-tag:
-  stage: build-tag
-  image:
-    name: gcr.io/kaniko-project/executor:debug
-    entrypoint: [""]
-  script:
-    - mkdir -p /kaniko/.docker
-    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(echo -n ${CI_REGISTRY_USER}:${CI_REGISTRY_PASSWORD} | base64)\"}}}" > /kaniko/.docker/config.json
-    - sed -i -e "s/<VERSION>/${CI_COMMIT_TAG} (${CI_COMMIT_SHORT_SHA})/g" ${CI_PROJECT_DIR}/project/app/application.py
-    - /kaniko/executor --context ${CI_PROJECT_DIR} --dockerfile ${CI_PROJECT_DIR}/project/Dockerfile --destination ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG} --destination ${CI_REGISTRY_IMAGE}:latest
-  rules:
-    - when: never
+###
+#
+# Create docker image at hub.docker.com for all releases
+#
+###
 
 build-tag-docker:
-  stage: build-tag-docker
+  stage: build
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
@@ -85,4 +57,68 @@ build-tag-docker:
     - sed -i -e "s/<VERSION>/${CI_COMMIT_TAG} (${CI_COMMIT_SHORT_SHA})/g" ${CI_PROJECT_DIR}/project/app/application.py
     - /kaniko/executor --context ${CI_PROJECT_DIR} --dockerfile ${CI_PROJECT_DIR}/project/Dockerfile --destination ${CI_REGISTRY_DOCKERHUB_BASEIMAGE}/${CI_PROJECT_NAME}:${CI_COMMIT_TAG} --destination ${CI_REGISTRY_DOCKERHUB_BASEIMAGE}/${CI_PROJECT_NAME}:latest
   rules:
-    - if: $CI_COMMIT_TAG
+    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
+
+###
+#
+# Create docker image for any other tags on gitlab private registry
+#
+###
+
+build-tag:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  script:
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(echo -n ${CI_REGISTRY_USER}:${CI_REGISTRY_PASSWORD} | base64)\"}}}" > /kaniko/.docker/config.json
+    - sed -i -e "s/<VERSION>/${CI_COMMIT_TAG} (${CI_COMMIT_SHORT_SHA})/g" ${CI_PROJECT_DIR}/project/app/application.py
+    - /kaniko/executor --context ${CI_PROJECT_DIR} --dockerfile ${CI_PROJECT_DIR}/project/Dockerfile --destination ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG} --destination ${CI_REGISTRY_IMAGE}:latest
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+(-.+)$/'
+
+###
+#
+# Prepare release notes
+#
+###
+
+prepare_job:
+  stage: prepare-release
+  image: alpine:latest
+  rules:
+  - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
+  script:
+    - apk add curl jq
+    - 'curl -H "PRIVATE-TOKEN: $CI_API_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/repository/changelog?version=$CI_COMMIT_TAG" | jq -r .notes > release_notes.md'
+    - 'curl -H "PRIVATE-TOKEN: $CI_API_TOKEN" -X POST "$CI_API_V4_URL/projects/$CI_PROJECT_ID/repository/changelog?version=$CI_COMMIT_TAG"'
+  artifacts:
+    paths:
+    - release_notes.md
+
+###
+#
+# Create release
+#
+###
+
+release_job:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  needs:
+    - job: prepare_job
+      artifacts: true
+  rules:
+  - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
+  script:
+    - echo "Creating release"
+  release:
+    name: 'Release $CI_COMMIT_TAG'
+    description: release_notes.md
+    tag_name: '$CI_COMMIT_TAG'
+    ref: '$CI_COMMIT_SHA'
+    assets:
+      links:
+        - name: 'Container Image $CI_COMMIT_TAG'
+          url: "https://hub.docker.com/r/jupyterjsc/jupyterhub-outpost:${CI_COMMIT_TAG}"
