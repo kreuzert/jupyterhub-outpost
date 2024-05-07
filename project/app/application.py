@@ -82,7 +82,7 @@ async def check_running_services():
                             > 1800
                         ):
                             log.info(
-                                f"PeriodicCheck - {service['name']} is no longer running at {service['jupyterhub']}. Stop it."
+                                f"PeriodicCheck - {service['jupyterhub_userid']}_{service['name']}_{service['start_id']} is no longer running at {service['jupyterhub']}. Stop it."
                             )
                             try:
                                 await full_stop_and_remove(
