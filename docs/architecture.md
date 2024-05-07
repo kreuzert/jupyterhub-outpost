@@ -2,7 +2,7 @@
 
 ## Default setup with remote system
 
-This is the default architecture designed to start a single-user notebook server. It uses a JupyterHub configured with an OutpostSpawner and running on a Kubenernetes cluster as well as a JupyterHub Outpost configured with a remote Spawner and running on a remote system (here a remote Kubernetes cluster, but can be another kind of system). The packages between the user and the single-user notebook server will be tunneled through the hub container on the JupyterHub Kubernetes cluster.
+This is the default architecture designed to start a single-user notebook server. It uses a JupyterHub configured with an OutpostSpawner running on a Kubenernetes cluster as well as a JupyterHub Outpost configured with a remote Spawner running on a remote system (here a remote Kubernetes cluster, but can be another kind of system). The packages between the user and the single-user notebook server will be tunneled through the hub container on the JupyterHub Kubernetes cluster.
 
 ```{eval-rst}
 .. image:: _static/images/architecture-default.png
