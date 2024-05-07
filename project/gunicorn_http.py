@@ -73,7 +73,7 @@ preload_app = True
 #       A positive integer. Generally set in the 1-5 seconds range.
 #
 
-workers = int(os.environ.get("GUNICORN_PROCESSES", 4))
+workers = int(os.environ.get("GUNICORN_PROCESSES", 1))
 threads = int(os.environ.get("GUNICORN_THREADS", 25))
 worker_class = "uvicorn.workers.UvicornWorker"
 # worker_connections = 1000
