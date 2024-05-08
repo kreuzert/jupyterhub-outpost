@@ -95,7 +95,8 @@ class JupyterHubOutpost(Application):
                 except:
                     self.log.exception(f"Could not delete {basename} cert file.")
             try:
-                Path(cert_base_path).rmdir()
+                if Path(cert_base_path).exists():
+                    Path(cert_base_path).rmdir()
             except:
                 self.log.exception(
                     f"Could not delete parent cert dir of {jupyterhub_name}-{service_name} ({start_id})."
