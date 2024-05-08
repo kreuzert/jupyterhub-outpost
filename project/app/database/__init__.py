@@ -21,8 +21,12 @@ db_url = ""
 engine_kwargs = {"pool_recycle": 300, "pool_pre_ping": True}
 
 if SQL_TYPE in ["sqlite", "sqlite+pysqlite"]:
+    from sqlalchemy.pool import StaticPool
+
     db_url = f"{SQL_TYPE}://{SQL_DATABASE_URL}"
-    engine_kwargs.update({"connect_args": {"check_same_thread": False}})
+    engine_kwargs.update(
+        {"connect_args": {"check_same_thread": False}, "poolclass": StaticPool}
+    )
 elif SQL_TYPE == "postgresql":
     db_url = (
         f"{SQL_TYPE}://{SQL_USER}:{SQL_PASSWORD}@{SQL_HOST}:{SQL_PORT}/{SQL_DATABASE}"
