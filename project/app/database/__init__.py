@@ -40,5 +40,9 @@ engine = create_engine(db_url, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 from database.models import Base
+from database.models import JupyterHub
+from database.models import Service
 
 Base.metadata.create_all(engine)
+JupyterHub.metadata.create_all(engine)
+Service.metadata.create_all(engine)
