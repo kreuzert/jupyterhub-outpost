@@ -9,6 +9,7 @@ import sys
 import time
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from pathlib import Path
 
 import yaml
@@ -666,7 +667,9 @@ class JupyterHubOutpost(Application):
                 if service.flavor in flavors.keys():
                     runtime = flavors[service.flavor].get("runtime", False)
                     if runtime:
-                        service.end_date = datetime.now() + timedelta(**runtime)
+                        service.end_date = datetime.now(timezone.utc) + timedelta(
+                            **runtime
+                        )
                 service.state = encrypt(self.get_state())
                 service.state_stored = True
                 service.start_response = encrypt({"service": ret})
@@ -697,7 +700,7 @@ class JupyterHubOutpost(Application):
                 if inspect.isawaitable(ret):
                     ret = await ret
                 if service:
-                    service.last_update = datetime.now()
+                    service.last_update = datetime.now(timezone.utc)
                     db.commit()
                 return ret
 
