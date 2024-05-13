@@ -5,9 +5,7 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 Base = declarative_base()
-SQL_DATABASE_URL = os.getenv(
-    "DATABASE_URL", "/file:memdb?mode=memory&cache=shared&uri=true"
-)
+SQL_DATABASE_URL = os.getenv("DATABASE_URL", "/./sqlite.db")
 SQL_TYPE = os.getenv("SQL_TYPE", "sqlite")
 SQL_DATABASE = os.getenv("SQL_DATABASE")
 SQL_HOST = os.getenv("SQL_HOST")
@@ -21,12 +19,8 @@ db_url = ""
 engine_kwargs = {"pool_recycle": 300, "pool_pre_ping": True}
 
 if SQL_TYPE in ["sqlite", "sqlite+pysqlite"]:
-    from sqlalchemy.pool import StaticPool
-
     db_url = f"{SQL_TYPE}://{SQL_DATABASE_URL}"
-    engine_kwargs.update(
-        {"connect_args": {"check_same_thread": False}, "poolclass": StaticPool}
-    )
+    engine_kwargs.update({"connect_args": {"check_same_thread": False}})
 elif SQL_TYPE == "postgresql":
     db_url = (
         f"{SQL_TYPE}://{SQL_USER}:{SQL_PASSWORD}@{SQL_HOST}:{SQL_PORT}/{SQL_DATABASE}"
