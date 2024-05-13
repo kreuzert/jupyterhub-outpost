@@ -74,7 +74,7 @@ preload_app = True
 #
 
 workers = int(os.environ.get("GUNICORN_PROCESSES", 1))
-threads = int(os.environ.get("GUNICORN_THREADS", 25))
+threads = int(os.environ.get("GUNICORN_THREADS", 1))
 worker_class = "uvicorn.workers.UvicornWorker"
 # worker_connections = 1000
 timeout = int(os.environ.get("GUNICORN_TIMEOUT", 30))
