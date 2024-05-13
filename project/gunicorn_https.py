@@ -75,8 +75,16 @@ preload_app = True
 #       A positive integer. Generally set in the 1-5 seconds range.
 #
 
-workers = int(os.environ.get("GUNICORN_PROCESSES", 1))
-threads = int(os.environ.get("GUNICORN_THREADS", 1))
+SQL_TYPE = os.environ.get("SQL_TYPE", "sqlite")
+if SQL_TYPE in ["sqlite", "sqlite+pysqlite"]:
+    workers_default = 1
+    threads_default = 1
+else:
+    workers_default = 4
+    threads_default = 25
+
+workers = int(os.environ.get("GUNICORN_PROCESSES", workers_default))
+threads = int(os.environ.get("GUNICORN_THREADS", threads_default))
 worker_class = "uvicorn.workers.UvicornWorker"
 # worker_connections = 1000
 timeout = int(os.environ.get("GUNICORN_TIMEOUT", 30))
