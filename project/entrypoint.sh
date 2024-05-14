@@ -18,7 +18,6 @@ if [ "$SQL_TYPE" == "postgresql" ]; then
     echo "$(date) PostgreSQL started"
 elif [ "${SQL_TYPE:-sqlite}" == "sqlite" ]; then
     touch ${SQL_DATABASE_URL:-/tmp/sqlite.db}
-    chown -R jhuboutpost:users ${SQL_DATABASE_URL:-/tmp/sqlite.db}
     chmod 666 ${SQL_DATABASE_URL:-/tmp/sqlite.db}
 fi
 
