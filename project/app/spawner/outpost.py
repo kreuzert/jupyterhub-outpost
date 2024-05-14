@@ -6,7 +6,6 @@ import logging
 import os
 import socket
 import sys
-import time
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone

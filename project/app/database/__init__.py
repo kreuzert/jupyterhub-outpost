@@ -5,7 +5,7 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 Base = declarative_base()
-SQL_DATABASE_URL = os.getenv("DATABASE_URL", "/./sqlite.db")
+SQL_DATABASE_URL = os.getenv("SQL_DATABASE_URL", "//tmp/sqlite.db")
 SQL_TYPE = os.getenv("SQL_TYPE", "sqlite")
 SQL_DATABASE = os.getenv("SQL_DATABASE")
 SQL_HOST = os.getenv("SQL_HOST")
