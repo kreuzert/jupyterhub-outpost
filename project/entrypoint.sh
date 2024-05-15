@@ -16,6 +16,9 @@ if [ "$SQL_TYPE" == "postgresql" ]; then
         sleep 0.1
     done
     echo "$(date) PostgreSQL started"
+elif [ "${SQL_TYPE:-sqlite}" == "sqlite" ]; then
+    touch ${SQL_DATABASE_URL:-/tmp/sqlite.db}
+    chmod 666 ${SQL_DATABASE_URL:-/tmp/sqlite.db}
 fi
 
 cd ${HOME}/app

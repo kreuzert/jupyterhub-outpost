@@ -5,9 +5,7 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 Base = declarative_base()
-SQL_DATABASE_URL = os.getenv(
-    "DATABASE_URL", "/file:memdb?mode=memory&cache=shared&uri=true"
-)
+SQL_DATABASE_URL = os.getenv("SQL_DATABASE_URL", "/tmp/sqlite.db")
 SQL_TYPE = os.getenv("SQL_TYPE", "sqlite")
 SQL_DATABASE = os.getenv("SQL_DATABASE")
 SQL_HOST = os.getenv("SQL_HOST")
@@ -21,7 +19,7 @@ db_url = ""
 engine_kwargs = {"pool_recycle": 300, "pool_pre_ping": True}
 
 if SQL_TYPE in ["sqlite", "sqlite+pysqlite"]:
-    db_url = f"{SQL_TYPE}://{SQL_DATABASE_URL}"
+    db_url = f"{SQL_TYPE}:///{SQL_DATABASE_URL}"
     engine_kwargs.update({"connect_args": {"check_same_thread": False}})
 elif SQL_TYPE == "postgresql":
     db_url = (
@@ -36,5 +34,9 @@ engine = create_engine(db_url, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 from database.models import Base
+from database.models import JupyterHub
+from database.models import Service
 
 Base.metadata.create_all(engine)
+JupyterHub.metadata.create_all(engine)
+Service.metadata.create_all(engine)

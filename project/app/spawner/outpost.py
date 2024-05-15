@@ -6,9 +6,9 @@ import logging
 import os
 import socket
 import sys
-import time
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from pathlib import Path
 
 import yaml
@@ -95,7 +95,8 @@ class JupyterHubOutpost(Application):
                 except:
                     self.log.exception(f"Could not delete {basename} cert file.")
             try:
-                Path(cert_base_path).rmdir()
+                if Path(cert_base_path).exists():
+                    Path(cert_base_path).rmdir()
             except:
                 self.log.exception(
                     f"Could not delete parent cert dir of {jupyterhub_name}-{service_name} ({start_id})."
@@ -665,7 +666,12 @@ class JupyterHubOutpost(Application):
                 if service.flavor in flavors.keys():
                     runtime = flavors[service.flavor].get("runtime", False)
                     if runtime:
-                        service.end_date = datetime.now() + timedelta(**runtime)
+                        service.end_date = datetime.now(timezone.utc) + timedelta(
+                            **runtime
+                        )
+                        self.log.info(
+                            f"{self._log_name} - Set end_date: {service.end_date}"
+                        )
                 service.state = encrypt(self.get_state())
                 service.state_stored = True
                 service.start_response = encrypt({"service": ret})
@@ -696,7 +702,7 @@ class JupyterHubOutpost(Application):
                 if inspect.isawaitable(ret):
                     ret = await ret
                 if service:
-                    service.last_update = datetime.now()
+                    service.last_update = datetime.now(timezone.utc)
                     db.commit()
                 return ret
 
