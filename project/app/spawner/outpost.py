@@ -669,6 +669,9 @@ class JupyterHubOutpost(Application):
                         service.end_date = datetime.now(timezone.utc) + timedelta(
                             **runtime
                         )
+                        self.log.info(
+                            f"{self._log_name} - Set end_date: {service.end_date}"
+                        )
                 service.state = encrypt(self.get_state())
                 service.state_stored = True
                 service.start_response = encrypt({"service": ret})

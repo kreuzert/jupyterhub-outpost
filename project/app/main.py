@@ -13,11 +13,6 @@ from tornado.httpclient import HTTPRequest
 log = logging.getLogger("uvicorn")
 
 
-@app.get("/")
-def main():
-    return RedirectResponse(url="/docs")
-
-
 @app.get("/ping")
 def ping():
     return {"ping": "pong!"}
@@ -74,8 +69,3 @@ async def recreate_tunnels():
                 log.exception(f"Could not restart tunnel for {service.name}")
     finally:
         db.close()
-
-
-# @app.on_event("shutdown")
-# async def shutdown_event():
-#     log.info("shutting down")

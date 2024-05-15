@@ -45,7 +45,7 @@ class Service(BaseModel):
     jupyterhub: JupyterHub | None = None
     last_update: datetime | None = datetime.now(timezone.utc)
     start_date: datetime | None = datetime.now(timezone.utc)
-    end_date: datetime | None = datetime.max
+    end_date: datetime | None = datetime.max.replace(tzinfo=timezone.utc)
     state_stored: bool | None = False
     start_pending: bool | None = True
     stop_pending: bool | None = False
