@@ -1,6 +1,7 @@
 import time
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 
 import pytest
 from app.database.schemas import decrypt
@@ -442,8 +443,12 @@ async def test_flavor_runtime_in_enddate(client, db_session):
     response = client.post("/services", json=service_data, headers=headers_auth_user)
     assert response.status_code == 200
     svc = get_service(jupyterhub_name, service_name, "0", db_session)
-    assert datetime.now() + timedelta(minutes=120) > svc.end_date
-    assert datetime.now() + timedelta(minutes=119) < svc.end_date
+    assert datetime.now(timezone.utc) + timedelta(minutes=120) > svc.end_date.replace(
+        tzinfo=timezone.utc
+    )
+    assert datetime.now(timezone.utc) + timedelta(minutes=119) < svc.end_date.replace(
+        tzinfo=timezone.utc
+    )
 
 
 @pytest.mark.asyncio

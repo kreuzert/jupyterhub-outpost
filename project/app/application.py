@@ -69,7 +69,7 @@ async def check_running_services():
                 for service in all_services:
                     if service["jupyterhub"] in running_services_in_jhub.keys():
                         log.debug(
-                            f"PeriodicCheck - Servers at {service['jupyterhub']} - {running_services_in_jhub[service['jupyterhub']]}"
+                            f"PeriodicCheck - Servers running at {service['jupyterhub']}: {len(running_services_in_jhub[service['jupyterhub']])}"
                         )
                         # Only check services which are running at least 30 minutes
                         if (
@@ -123,8 +123,17 @@ async def check_enddates():
             db = SessionLocal()
             services = get_services_all(jupyterhub_name=None, db=db)
             for service in services:
-                end_date = service["end_date"]
-                if now > end_date:
+                try:
+                    end_date = service["end_date"]
+                    expired = now > end_date
+                except:
+                    # Previously we stored end_dates without timezones. Try to add one
+                    try:
+                        expired = now > end_date.replace(tzinfo=datetime.timezone.utc)
+                    except:
+                        expired = False
+                        log.exception(f"Could not check end_date for {service}")
+                if expired:
                     try:
                         log.info(
                             f"end_date check - Stop and remove {service['name']} ({service['start_id']}) ({service['jupyterhub']}) (end_date: {end_date})"
