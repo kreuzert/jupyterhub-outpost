@@ -1,4 +1,7 @@
 # Changelog
+## 1.0.4 (2024-07-09)
+Improved default configuration to work with any submitted profile
+
 ## 1.0.3 (2024-05-15)
 
 ### fixed (2 changes)
