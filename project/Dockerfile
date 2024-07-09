@@ -1,4 +1,4 @@
-FROM python:3.12.3-alpine3.19
+FROM python:3.12-alpine3.20
 
 ENV USERNAME=jhuboutpost
 ENV HOME=/home/${USERNAME}
