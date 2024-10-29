@@ -36,7 +36,7 @@ import logging
 logger_name = os.environ.get("LOGGER_NAME", "JupyterHubOutpost")
 log = logging.getLogger(logger_name)
 
-background_tasks = set()
+# background_tasks = set()
 
 
 def get_auth_state(headers):
@@ -263,7 +263,7 @@ async def delete_service(
             state=state,
             run_async=True,
         )
-        return JSONResponse(content={}, status_code=202, background_task=task)
+        return JSONResponse(content={}, status_code=202, background=task)
     else:
         log.info(f"Delete service {service_name} for {jupyterhub_name} and wait for it")
         await full_stop_and_remove(jupyterhub_name, service_name, start_id, db, request)
