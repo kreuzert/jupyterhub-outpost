@@ -641,7 +641,7 @@ class JupyterHubOutpost(Application):
 
             async def _outpostspawner_db_start_call(self, db):
                 self.clear_state()
-                self.run_pre_spawn_hook()
+                await maybe_future(self.run_pre_spawn_hook())
                 if self.cert_paths:
                     cert_paths = self.move_certs(self.cert_paths)
                     if inspect.isawaitable(cert_paths):

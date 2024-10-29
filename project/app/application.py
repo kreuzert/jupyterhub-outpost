@@ -76,7 +76,7 @@ async def check_running_services():
                             f"{service['jupyterhub_userid']}_{service['name']}_{service['start_id']}"
                             not in running_services_in_jhub[service["jupyterhub"]]
                             and (
-                                datetime.datetime.now(datetime.UTC)
+                                datetime.datetime.now(datetime.timezone.utc)
                                 - service["start_date"]
                             ).total_seconds()
                             > 1800

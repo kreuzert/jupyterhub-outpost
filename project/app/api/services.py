@@ -14,6 +14,7 @@ from database.utils import get_or_create_jupyterhub
 from database.utils import get_service
 from database.utils import get_services_all
 from fastapi import APIRouter
+from fastapi import BackgroundTasks
 from fastapi import Depends
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -169,6 +170,7 @@ async def get_services(
 @catch_exception
 async def delete_service(
     service_name: str,
+    background_tasks: BackgroundTasks,
     start_id: str = "0",
     jupyterhub_name: Annotated[HTTPBasicCredentials, Depends(verify_user)] = None,
     request: Request = None,
@@ -250,21 +252,18 @@ async def delete_service(
                 f"{spawner._log_name} - Could not send flavor update to {jupyterhub_name}."
             )
 
-        task = asyncio.create_task(
-            full_stop_and_remove(
-                jupyterhub_name,
-                service_name,
-                start_id,
-                db,
-                request,
-                body=body,
-                state=state,
-                run_async=True,
-            )
+        task = background_tasks.add_task(
+            full_stop_and_remove,
+            jupyterhub_name,
+            service_name,
+            start_id,
+            db,
+            request,
+            body=body,
+            state=state,
+            run_async=True,
         )
-        background_tasks.add(task)
-        task.add_done_callback(background_tasks.discard)
-        return JSONResponse(content={}, status_code=202)
+        return JSONResponse(content={}, status_code=202, background_task=task)
     else:
         log.info(f"Delete service {service_name} for {jupyterhub_name} and wait for it")
         await full_stop_and_remove(jupyterhub_name, service_name, start_id, db, request)
@@ -277,6 +276,7 @@ async def add_service(
     service: service_schema.Service,
     jupyterhub_name: Annotated[HTTPBasicCredentials, Depends(verify_user)],
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     log.info(f"Create service {service.name} for {jupyterhub_name}")
@@ -392,11 +392,9 @@ async def add_service(
         await wrapper._outpostspawner_send_flavor_update(
             db, service.name, jupyterhub_name, flavor_update_url
         )
-        task = asyncio.create_task(async_start(sync=False))
-        background_tasks.add(task)
-        task.add_done_callback(background_tasks.discard)
+        task = background_tasks.add_task(async_start, sync=False)
 
-        return JSONResponse(content={"service": ""}, status_code=202)
+        return JSONResponse(content={"service": ""}, status_code=202, background=task)
     else:
         ret = await async_start()
         return JSONResponse(content={"service": ret}, status_code=200)
