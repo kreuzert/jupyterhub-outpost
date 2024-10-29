@@ -1,4 +1,8 @@
 # Changelog
+## 1.0.5 (2024-10-29)
+- Security updates (alpine image, python packages)
+- Using `BackgroundTasks` instead of `asyncio.tasks` for async calls ([merge request](jupyterjsc/k8s/images/jupyterhub-outpost!9))
+
 ## 1.0.4 (2024-07-09)
 Improved default configuration to work with any submitted profile
 
