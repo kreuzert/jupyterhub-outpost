@@ -1,5 +1,5 @@
-# FROM ubuntu:jammy-20230624
-FROM ubuntu:oracular-20241009
+FROM ubuntu:jammy-20230624
+# FROM ubuntu:oracular-20241009
 
 ENV DEBIAN_FRONTEND noninteractive
 
