@@ -1,7 +1,5 @@
 import asyncio
-import datetime
 import time
-import traceback
 from typing import Annotated
 from typing import List
 
@@ -25,6 +23,11 @@ from spawner import remove_spawner
 from sqlalchemy.orm import Session
 from users import verify_user
 
+from .utils import async_start
+from .utils import full_stop_and_remove
+from .utils import get_auth_state
+from .utils import validate_flavor
+
 router = APIRouter()
 
 from exceptions import catch_exception
@@ -37,85 +40,6 @@ logger_name = os.environ.get("LOGGER_NAME", "JupyterHubOutpost")
 log = logging.getLogger(logger_name)
 
 # background_tasks = set()
-
-
-def get_auth_state(headers):
-    ret = {}
-    for key, value in headers.items():
-        if key.startswith("auth-state-"):
-            ret[key[len("auth-state-") :]] = value
-    return ret
-
-
-async def full_stop_and_remove(
-    jupyterhub_name,
-    service_name,
-    start_id,
-    db,
-    request=None,
-    body={},
-    state={},
-    run_async=False,
-):
-    if not run_async:
-        try:
-            service = get_service(jupyterhub_name, service_name, start_id, db)
-            if service.stop_pending:
-                log.info(
-                    f"{jupyterhub_name} - {service_name} is already stopping. No need to stop it twice"
-                )
-                db.delete(service)
-                db.commit()
-                return
-        except:
-            log.warning(
-                f"{jupyterhub_name} - {service_name} Does not exist. No need to stop it again"
-            )
-            return
-        service.stop_pending = True
-        db.add(service)
-        db.commit()
-        body = decrypt(service.body)
-    wrapper = get_wrapper()
-    if request:
-        auth_state = get_auth_state(request.headers)
-    else:
-        auth_state = {}
-
-    spawner = await get_spawner(
-        jupyterhub_name,
-        service_name,
-        start_id,
-        body,
-        auth_state,
-        state,
-    )
-    flavor_update_url = spawner.get_env().get("JUPYTERHUB_FLAVORS_UPDATE_URL", "")
-    spawner.log.info(f"{spawner._log_name} - Stop service and remove it from database.")
-    try:
-        await spawner._outpostspawner_db_stop(db)
-    except:
-        spawner.log.exception(f"{spawner._log_name} - Stop failed.")
-    finally:
-        remove_spawner(jupyterhub_name, service_name, start_id)
-    try:
-        service = get_service(jupyterhub_name, service_name, start_id, db)
-        db.delete(service)
-        db.commit()
-    except Exception as e:
-        log.debug(
-            f"{jupyterhub_name}-{service_name} - Could not delete service from database"
-        )
-
-    # Send update after service was deleted from db
-    try:
-        await wrapper._outpostspawner_send_flavor_update(
-            db, service_name, jupyterhub_name, flavor_update_url
-        )
-    except:
-        spawner.log.exception(
-            f"{spawner._log_name} - Could not send flavor update to {jupyterhub_name}."
-        )
 
 
 @router.get("/flavors/")
@@ -189,7 +113,7 @@ async def delete_service(
         # before the start process has stored a state,
         # we should wait for it for max 60
         # seconds, so we have a chance to cancel it correctly.
-        until = time.time() + 5
+        until = time.time() + 60
         state = {}
         while time.time() < until:
             try:
@@ -238,6 +162,9 @@ async def delete_service(
             flavor_update_url = spawner.get_env().get(
                 "JUPYTERHUB_FLAVORS_UPDATE_URL", ""
             )
+            flavor_update_token = spawner.get_env().get(
+                "JUPYTERHUB_FLAVORS_UPDATE_TOKEN", None
+            )
             # Reduce number of <flavor> by one, since it will be deleted soon
             wrapper = get_wrapper()
             await wrapper._outpostspawner_send_flavor_update(
@@ -245,6 +172,7 @@ async def delete_service(
                 service_name,
                 jupyterhub_name,
                 flavor_update_url,
+                flavor_update_token,
                 reduce_one_flavor_count=service.flavor,
             )
         except:
@@ -281,8 +209,8 @@ async def add_service(
 ) -> JSONResponse:
     log.info(f"Create service {service.name} for {jupyterhub_name}")
     jupyterhub = get_or_create_jupyterhub(jupyterhub_name, db)
-    service_name = service.name
-    d = service.dict()
+    flavor = await validate_flavor(service, jupyterhub_name, request, db)
+    d = service.model_dump()
 
     # Do not store certs and internal_trust_bundles from db
     # That's just to much unused data, it's only used during startup
@@ -294,30 +222,6 @@ async def add_service(
 
     # Add jupyterhub to db
     d["jupyterhub"] = jupyterhub
-
-    # check if the chosen flavor is currently available, before adding the service to
-    # the database
-    wrapper = get_wrapper()
-
-    request_json = await request.json()
-    user_authentication = request_json.get("authentication", {})
-    flavor = dec_body.get("user_options", {}).get("flavor", "_undefined")
-    current_flavor_values = await wrapper._outpostspawner_get_flavor_values(
-        db, jupyterhub_name, user_authentication
-    )
-    if flavor in current_flavor_values.keys():
-        current_flavor_value = current_flavor_values.get(flavor, {}).get("current", 0)
-    else:
-        current_flavor_value = current_flavor_values.get("_undefined", {}).get(
-            "current", 0
-        )
-    undefined_max = await wrapper.get_flavors_undefined_max(jupyterhub_name)
-    max_flavor_value = current_flavor_values.get(flavor, {}).get("max", undefined_max)
-    if current_flavor_value >= max_flavor_value and max_flavor_value != -1:
-        # max = -1 -> infinite
-        raise Exception(
-            f"{service_name} - Start with {flavor} for {jupyterhub_name} not allowed. Maximum ({max_flavor_value}) already reached."
-        )
 
     new_service = service_model.Service(**d)
     db.add(new_service)
@@ -333,70 +237,41 @@ async def add_service(
         get_auth_state(request.headers),
         certs,
         internal_trust_bundles,
+        user_flavor=flavor,
     )
     flavor_update_url = spawner.get_env().get("JUPYTERHUB_FLAVORS_UPDATE_URL", "")
-
-    async def async_start(sync=True):
-        # remove spawner from wrapper to ensure it's using the current config
-        try:
-            ret = await spawner._outpostspawner_db_start(db)
-        except Exception as e:
-            log.exception(f"{jupyterhub_name} - {service_name} - Could not start")
-            if not sync:
-                # Send cancel event to JupyterHub, otherwise JHub will never see
-                # an error, because this function is running async and the response
-                # was already sent to JHub
-                now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-                details = traceback.format_exc().replace("\n", "<br>")
-                event = {
-                    "failed": True,
-                    "progress": 100,
-                    "html_message": f"<details><summary>{now}: JupyterHub Outpost could not start service: {str(e)}</summary>{details}</details>",
-                }
-                await spawner._outpostspawner_send_event(event)
-            try:
-                await full_stop_and_remove(
-                    jupyterhub_name,
-                    service_name,
-                    start_id,
-                    db,
-                    request,
-                )
-            except:
-                log.exception(
-                    f"{jupyterhub_name}-{service_name} - Could not stop and remove"
-                )
-            try:
-                # Send flavor update also for failed start attempts. Otherwise hubs
-                # will never retrieve the correct flavors, if their init_configuration
-                # is not set correctly
-                await wrapper._outpostspawner_send_flavor_update(
-                    db, service.name, jupyterhub_name, flavor_update_url
-                )
-            except:
-                pass
-            raise e
-        else:
-            service_ = get_service(jupyterhub_name, service.name, start_id, db)
-            service_.start_pending = False
-            db.add(service_)
-            db.commit()
-            await wrapper._outpostspawner_send_flavor_update(
-                db, service.name, jupyterhub_name, flavor_update_url
-            )
-            return ret
+    flavor_update_token = spawner.get_env().get("JUPYTERHUB_FLAVORS_UPDATE_TOKEN", None)
 
     if request.headers.get("execution-type", "sync") == "async":
         # Send update already at this point before actually starting the service.
         # Otherwise Hub might use deprecated data
+        wrapper = get_wrapper()
         await wrapper._outpostspawner_send_flavor_update(
-            db, service.name, jupyterhub_name, flavor_update_url
+            db, service.name, jupyterhub_name, flavor_update_url, flavor_update_token
         )
-        task = background_tasks.add_task(async_start, sync=False)
+        task = background_tasks.add_task(
+            async_start,
+            service,
+            jupyterhub_name,
+            request,
+            db,
+            spawner,
+            flavor_update_url,
+            flavor_update_token,
+            sync=False,
+        )
 
         return JSONResponse(content={"service": ""}, status_code=202, background=task)
     else:
-        ret = await async_start()
+        ret = await async_start(
+            service,
+            jupyterhub_name,
+            request,
+            db,
+            spawner,
+            flavor_update_url,
+            flavor_update_token,
+        )
         return JSONResponse(content={"service": ret}, status_code=200)
 
 

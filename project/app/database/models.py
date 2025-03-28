@@ -7,6 +7,7 @@ from database.schemas import encrypt
 from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
@@ -42,4 +43,5 @@ class Service(Base):
     state = Column(LargeBinary, default=None)
     start_response = Column(LargeBinary, default=None)
     jupyterhub: Mapped["JupyterHub"] = relationship(back_populates="services")
-    flavor = Column(String, default="_undefined")
+    jupyterhub_user_id = Column(Integer, default=0)
+    flavor = Column(String, default=None)

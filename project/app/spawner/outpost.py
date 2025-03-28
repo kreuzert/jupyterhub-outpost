@@ -4,6 +4,7 @@ import inspect
 import json
 import logging
 import os
+import re
 import socket
 import sys
 from datetime import datetime
@@ -35,6 +36,7 @@ from traitlets import Callable
 from traitlets import default
 from traitlets import Dict
 from traitlets import Instance
+from traitlets import Integer
 from traitlets import List
 from traitlets import Union
 from traitlets.config import Application
@@ -68,7 +70,9 @@ class JupyterHubOutpost(Application):
     spawners = {}
     logging_config_cache = {}
     logging_config_last_update = 0
-    logging_config_file = os.environ.get("LOGGING_CONFIG_PATH")
+    logging_config_file = os.environ.get(
+        "LOGGING_CONFIG_PATH", "/mnt/outpost_config/logging_config.yaml"
+    )
 
     def remove_spawner(self, jupyterhub_name, service_name, start_id):
         if f"{jupyterhub_name}-{service_name}-{start_id}" in self.spawners.keys():
@@ -113,6 +117,7 @@ class JupyterHubOutpost(Application):
         certs={},
         internal_trust_bundles={},
         state={},
+        user_flavor={},
     ):
         if f"{jupyterhub_name}-{service_name}-{start_id}" not in self.spawners:
             self.log.debug(
@@ -127,6 +132,7 @@ class JupyterHubOutpost(Application):
                 certs,
                 internal_trust_bundles,
                 state,
+                user_flavor,
             )
             self.spawners[f"{jupyterhub_name}-{service_name}-{start_id}"] = spawner
         return self.spawners[f"{jupyterhub_name}-{service_name}-{start_id}"]
@@ -200,91 +206,123 @@ class JupyterHubOutpost(Application):
             request_kwargs = self.request_kwargs
         return request_kwargs
 
-    flavors_undefined_max = Any(
+    global_max_per_user = Integer(
         default_value=-1,
         config=True,
         help="""
-        Configure the amount of JupyterLabs JupyterHubOutpost should offer,
-        if flavor is not defined in user_options, or the given flavor is not
-        configured in JupyterHubOutpost.flavors .
-        Set to -1 to not restrict it.
-        Set 0 to not allow undefined flavors (or flavors that are not part of 
-        JupyterHubOutpost.flavors ) at all.
-        
-        default: -1
-        
-        May be a coroutine.
-        
-        Example::
-        
-            async def flavors_undefined_max(jupyterhub_name):
-                if jupyterhub_name == "empire":
-                    # The empire is not allowed to use our resources,
-                    # other than the defined JupyterHubOutpost.flavors
-                    return 0
-                elif jupyterhub_name == "rebellion":
-                    # The rebellion JupyterHub can use all available
-                    # resources
-                    return -1
-                else:
-                    # Other JupyterHubs may start up to 10 "undefined" /
-                    # not configured notebook servers on this Outpost.
-                    return 10
-            
-            c.JupyterHubOutpost.flavors_undefined_max = flavors_undefined_max
+        Set a global limit of services for each user per hub.
+        Independent  of the specific flavor limits.
         """,
     )
 
-    async def get_flavors_undefined_max(self, jupyterhub_name):
-        if callable(self.flavors_undefined_max):
-            flavors_undefined_max = self.flavors_undefined_max(jupyterhub_name)
-            if inspect.isawaitable(flavors_undefined_max):
-                flavors_undefined_max = await flavors_undefined_max
-        else:
-            flavors_undefined_max = self.flavors_undefined_max
-        return flavors_undefined_max
-
-    flavors = Any(
-        default_value={},
-        config=True,
-        help="""
-        Configure the amount of resources JupyterHubOutpost should offer
-        in general, or depending on the connected JupyterHub. Can be a dict
-        or a function. -1 is interpreted as infinite.
-        Set JupyterHubOutpost.flavors_undefined_max to set a maximum value
-        for not configured or undefined flavors. 
-        
-        May be a coroutine.
-        
-        Example::
-            
-            async def flavors(jupyterhub_name):
-                if jupyterhub_name == "empire":
-                    return {
-                        "type_a": 2,
-                        "type_b": 2
-                    }
-                elif jupyterhub_name == "rebellion":
-                    # allow unlimited type_a 
-                    return {
-                        "type_a": -1,
-                        "type_b": 70
-                    }
-                else:                
-                    return {}
-            
-            c.JupyterHubOutpost.flavors = flavors
-        """,
-    )
+    def get_flavors_from_disk(self):
+        path = os.environ.get("OUTPOST_FLAVORS_PATH", "/mnt/flavors/flavors.yaml")
+        if (not os.path.exists(path)) or (not os.path.isfile(path)):
+            return {}
+        with open(path, "r") as f:
+            flavor_config = yaml.full_load(f)
+        return flavor_config
 
     async def get_flavors(self, jupyterhub_name):
-        if callable(self.flavors):
-            flavors = self.flavors(jupyterhub_name)
-            if inspect.isawaitable(flavors):
-                flavors = await flavors
-        else:
-            flavors = self.flavors
-        return flavors
+        flavor_config = self.get_flavors_from_disk()
+
+        # If no hub is defined, return all available flavors
+        if not jupyterhub_name:
+            return flavor_config.get("flavors", {})
+
+        jupyterhub_sets = []
+        # check if the given jupyterhub_name is part of any jhub set
+
+        self.log.trace(f"Check for hub specific flavors (hub={jupyterhub_name})...")
+        for key, value in flavor_config.get("hubs", {}).items():
+            config_jupyterhub_name = value.get("jupyterhub_name", [])
+            self.log.trace(f"Check {key} hub configuration")
+            if type(config_jupyterhub_name) == list:
+                self.log.trace(
+                    f"Test if {jupyterhub_name} is in hubs.{key}.jupyterhub_name"
+                )
+                if jupyterhub_name in config_jupyterhub_name:
+                    self.log.trace(
+                        f"{jupyterhub_name} in {config_jupyterhub_name} - Add {key} to possible hub sets"
+                    )
+                    jupyterhub_sets.append((key, value.get("weight", 0)))
+                    break
+            elif type(config_jupyterhub_name) == str:
+                self.log.trace(
+                    f"Test if hub value ({jupyterhub_name}) matches the regex pattern {config_jupyterhub_name}"
+                )
+                try:
+                    if re.fullmatch(config_jupyterhub_name, jupyterhub_name):
+                        self.log.trace(
+                            f"{jupyterhub_name} matches {config_jupyterhub_name} - Add {key} to possible hub sets"
+                        )
+                        jupyterhub_sets.append((key, value.get("weight", 0)))
+                        break
+                except re.error:
+                    self.log.trace(
+                        f"{config_jupyterhub_name} is not a valid regex. Check if strings are equal"
+                    )
+                    if jupyterhub_name == config_jupyterhub_name:
+                        self.log.trace(
+                            f"{jupyterhub_name} == {config_jupyterhub_name} - Add {key} to possible hub sets"
+                        )
+                        jupyterhub_sets.append((key, value.get("weight", 0)))
+                        break
+            else:
+                self.log.warning(
+                    f"Flavor hubs.{key}.jupyterhub_name is type {type(config_jupyterhub_name)}. Only list and str (regex or plain comparison) are supported."
+                )
+
+        # jupyterhub_name is not allowed to use any flavors
+        if len(jupyterhub_sets) == 0:
+            self.log.trace(f"No sets for {jupyterhub_name} found. Return all flavors")
+            return flavor_config.get("flavors", {})
+
+        jupyterhub_sets = sorted(jupyterhub_sets, key=lambda x: x[1])
+        # sorted sorts ascending, we're using weight, so we use the last element
+        # with the biggest weight
+        jupyterhub_set = jupyterhub_sets[-1][0]
+        self.log.debug(f"Sorted matched hub sets. Use hub set {jupyterhub_set}")
+
+        hub_specific_flavors = {}
+        hub_specific_flavors_keys = (
+            flavor_config.get("hubs", {}).get(jupyterhub_set, {}).get("flavors", [])
+        )
+        hub_specific_flavors_key_exists = "flavors" in flavor_config.get(
+            "hubs", {}
+        ).get(jupyterhub_set, {})
+
+        for flavorName, flavorValue in flavor_config.get("flavors", {}).items():
+            if (
+                not hub_specific_flavors_key_exists
+            ) or flavorName in hub_specific_flavors_keys:
+                hub_specific_flavors[flavorName] = flavorValue
+
+        self.log.trace(
+            f"Check hubs.{jupyterhub_set}.flavorsOverride - This allows you to override any config configured globally in flavors._flavor_"
+        )
+        for flavorName, overrideDict in (
+            flavor_config.get("hubs", {})
+            .get(jupyterhub_set, {})
+            .get("flavorsOverride", {})
+            .items()
+        ):
+            if flavorName not in hub_specific_flavors.keys():
+                self.log.warning(
+                    f"Do not override {flavorName} for user set {jupyterhub_set}. Flavor not part of flavors list."
+                )
+                continue
+            for overrideKey, overrideValue in overrideDict.items():
+                self.log.trace(
+                    f"Override {flavorName}.{overrideKey} to user specific values"
+                )
+                hub_specific_flavors[flavorName][overrideKey] = overrideValue
+
+        self.log.trace(
+            "Hub flavors function ended. Return the following hub specific flavors"
+        )
+        self.log.trace(hub_specific_flavors)
+        return hub_specific_flavors
 
     flavors_update_token = Any(
         default_value="",
@@ -326,51 +364,149 @@ class JupyterHubOutpost(Application):
             flavors_update_token = self.flavors_update_token
         return flavors_update_token
 
-    user_flavors = Any(
-        default_value=None,
-        config=True,
-        help="""
-        An optional hook to offer resources specific for each user. JupyterHub
-        name and authentication dict will be send to this function. Allowed return
-        values: true (allow all flavors / resources. Default), false (User is
-        not allowed to use this Outpost), dict (dict of flavors for this user).
-        
-        May be a coroutine.
-        
-        Example::
-        
-            async def user_flavors(jhub_outpost, jupyterhub_name, auth_dict):
-                if jupyterhub_name == "hub1":
-                    if auth_dict.get("username", "").endswith("mycompany.org"):
-                        return True
-                    else:
-                        # get the default flavors
-                        # be careful to not manipulate the default flavors for all users
-                        import copy
-                        default_flavors = await jhub_outpost.get_flavors(jupyterhub_name)
-                        specific_flavors = copy.deepcopy(default_flavors)
-                        
-                        # Users from other companies are not allowed to use the
-                        # resource intensive flavor
-                        if "16gbflavor" in specific_flavors.keys():
-                            del specific_flavors["16gbflavor"]
-                        return specific_flavors
-                # Only users of hub1 are allowed to use this outpost
-                # Can also be configured in c.JupyterHubOutpost.flavors
-                return False
-            
-            c.JupyterHubOutpost.user_flavors = user_flavors
-        """,
-    )
+    async def flavors_per_user(self, jupyterhub_name, authentication):
+        hub_flavors = await self.get_flavors(jupyterhub_name)
+        if not authentication:
+            return hub_flavors
 
-    async def run_user_flavors(self, jupyterhub_name, auth_dict):
-        if self.user_flavors:
-            user_flavors = self.user_flavors(self, jupyterhub_name, auth_dict)
-            if inspect.isawaitable(user_flavors):
-                user_flavors = await user_flavors
-            return user_flavors
-        else:
-            return True
+        flavor_config = self.get_flavors_from_disk()
+
+        if not flavor_config.get("users", {}):
+            self.log.info(
+                f"User specific config not set. Use hub ({jupyterhub_name}) specific flavors"
+            )
+            return hub_flavors
+
+        user_sets = []
+        # check if the given user is part of any user set
+        self.log.trace("Check for user specific flavors ...")
+        self.log.trace(authentication)
+        for key, value in flavor_config.get("users", {}).items():
+            self.log.trace(f"Check {key} user configuration")
+            if "hubs" in value.keys() and jupyterhub_name not in value.get("hubs", []):
+                self.log.trace(f"{jupyterhub_name} not in users.{key}.hubs . Skip")
+            else:
+                negate_authentication = value.get("negate_authentication", False)
+                matched = False
+                if negate_authentication:
+                    self.log.info(
+                        f"Negate logic for matching user to users.{key}.authentication. So users who don't match the authentcation will use this user set"
+                    )
+                for config_auth_key, config_auth_value in value.get(
+                    "authentication", {}
+                ).items():
+                    self.log.trace(
+                        f"Test if users.{key}.authentication.{config_auth_key} matches with user authentication"
+                    )
+                    for user_auth_key, user_auth_values in authentication.items():
+                        if config_auth_key == user_auth_key:
+                            if type(user_auth_values) != list:
+                                user_auth_values = [user_auth_values]
+                            if type(config_auth_value) == str:
+                                self.log.trace(
+                                    f"Test if any user value in {user_auth_key} ({user_auth_values}) matches the regex pattern {config_auth_value}"
+                                )
+                                for user_auth_value in user_auth_values:
+                                    try:
+                                        if re.fullmatch(
+                                            config_auth_value, user_auth_value
+                                        ):
+                                            self.log.trace(
+                                                f"{user_auth_value} matches {config_auth_value} - Add {key} to possible user sets"
+                                            )
+                                            matched = True
+                                    except re.error:
+                                        self.log.trace(
+                                            f"{config_auth_value} is not a valid regex. Check if strings are equal"
+                                        )
+                                        if user_auth_value == config_auth_value:
+                                            self.log.trace(
+                                                f"{user_auth_value} == {config_auth_value} - Add {key} to possible user sets"
+                                            )
+                                            matched = True
+                            elif type(config_auth_value) == list:
+                                self.log.trace(
+                                    f"Test if any user value in {user_auth_key} ({user_auth_values}) is in list {config_auth_value}"
+                                )
+                                for user_auth_value in user_auth_values:
+                                    if user_auth_value in config_auth_value:
+                                        self.log.trace(
+                                            f"{user_auth_value} in {config_auth_value} - Add {key} to possible user sets"
+                                        )
+                                        matched = True
+                            else:
+                                self.log.warning(
+                                    f"Flavor users.{key}.authentication.{config_auth_key} is type {type(config_auth_value)}. Only list and str (regex or plain comparison) are supported."
+                                )
+                if (not negate_authentication) and matched:
+                    user_sets.append([key, value.get("weight", 0)])
+                elif negate_authentication and (not matched):
+                    self.log.trace(
+                        f"User does not match users.{key}.authentication , but since users.{key}.negatve_authentication is true, the user will be added to the user subset"
+                    )
+                    user_sets.append([key, value.get("weight", 0)])
+        self.log.trace("Check for user specific flavors ... done")
+        if len(user_sets) == 0:
+            self.log.debug(
+                f"No user specific flavor found. Return hub ({jupyterhub_name}) specific flavors."
+            )
+            return hub_flavors
+
+        user_sets = sorted(user_sets, key=lambda x: x[1])
+        # sorted sorts ascending, we're using weight, so we use the last element
+        # with the biggest weight
+        user_set = user_sets[-1][0]
+        self.log.debug(f"Sorted matched user sets. Use user set {user_set}")
+
+        # When "forbidden" is true, we return an empty dict for this uset_set
+        if flavor_config.get("users", {}).get(user_set, {}).get("forbidden", False):
+            self.log.info(
+                f"users.{user_set}.forbidden is True. User's not allowed to use any flavor"
+            )
+            return {}
+
+        # Copy default flavors for this hub
+        all_flavors = await self.get_flavors(None)
+        user_flavors = {}
+        user_flavor_keys_exists = (
+            "flavors" in flavor_config.get("users", {}).get(user_set, {}).keys()
+        )
+        user_flavor_keys = (
+            flavor_config.get("users", {}).get(user_set, {}).get("flavors", [])
+        )
+        self.log.trace(
+            f"users.{user_set}.forbidden is False. Use users.{user_set}.flavors ({user_flavor_keys}) for this user"
+        )
+
+        for flavorName, flavorValue in all_flavors.items():
+            if (not user_flavor_keys_exists) or flavorName in user_flavor_keys:
+                user_flavors[flavorName] = flavorValue
+
+        self.log.trace(
+            f"Check users.{user_set}.flavorsOverride - This allows you to override any config configured globally in flavors._flavor_"
+        )
+        for flavorName, overrideDict in (
+            flavor_config.get("users", {})
+            .get(user_set, {})
+            .get("flavorsOverride", {})
+            .items()
+        ):
+            if flavorName not in user_flavors.keys():
+                self.log.warning(
+                    f"Do not override {flavorName} for user set {user_set}. Flavor not part of flavors list."
+                )
+                continue
+            for overrideKey, overrideValue in overrideDict.items():
+                self.log.trace(
+                    f"Override {flavorName}.{overrideKey} to user specific values"
+                )
+                user_flavors[flavorName][overrideKey] = overrideValue
+
+        self.log.trace(
+            "User flavors function ended. Return the following user specific flavors"
+        )
+        self.log.trace(user_flavors)
+        return user_flavors
 
     send_events = Any(
         default_value=True,
@@ -403,11 +539,40 @@ class JupyterHubOutpost(Application):
             send_events = self.send_events
         return send_events
 
-    http_client = Any
+    http_client = Any()
 
     @default("http_client")
     def _default_http_client(self):
         return AsyncHTTPClient(force_instance=True, defaults=dict(validate_cert=False))
+
+    async def _outpostspawner_flavor_max_user_flavor_validation(
+        self, db, jupyterhub_name, flavor, user_id
+    ):
+        flavor_count = (
+            db.query(
+                service_model.Service,
+            )
+            .filter(service_model.Service.jupyterhub_username == jupyterhub_name)
+            .filter(service_model.Service.flavor == flavor)
+            .filter(service_model.Service.jupyterhub_user_id == user_id)
+            .filter(service_model.Service.stop_pending == False)
+            .count()
+        )
+        return flavor_count
+
+    async def _outpostspawner_flavor_max_user_validation(
+        self, db, jupyterhub_name, user_id
+    ):
+        user_total_count = (
+            db.query(
+                service_model.Service,
+            )
+            .filter(service_model.Service.jupyterhub_username == jupyterhub_name)
+            .filter(service_model.Service.jupyterhub_user_id == user_id)
+            .filter(service_model.Service.stop_pending == False)
+            .count()
+        )
+        return user_total_count
 
     async def _outpostspawner_get_flavor_values(
         self,
@@ -417,34 +582,11 @@ class JupyterHubOutpost(Application):
         add_one_flavor_count=None,
         reduce_one_flavor_count=None,
     ):
-        default_flavors = await self.get_flavors(jupyterhub_name)
+        default_flavors = await self.flavors_per_user(
+            jupyterhub_name, user_authentication
+        )
         configured_flavors = copy.deepcopy(default_flavors)
-        if user_authentication:
-            user_specific_flavors = await self.run_user_flavors(
-                jupyterhub_name, user_authentication
-            )
-            self.log.debug(
-                f"flavors for {jupyterhub_name} - Get flavors for specific user for {jupyterhub_name} - {user_specific_flavors}"
-            )
-            if type(user_specific_flavors) == bool and not user_specific_flavors:
-                # This user is not allowed at all
-                return {
-                    "_undefined": {
-                        "max": 0,
-                        "current": 0,
-                        "display_name": "default flavor",
-                        "weight": 1,
-                    }
-                }
-            elif type(user_specific_flavors) == dict:
-                # Override user specific flavors
-                if not set(user_specific_flavors.keys()) <= set(
-                    configured_flavors.keys()
-                ):
-                    self.log.warning(
-                        f"The user specific flavors should be a subset of the default flavors. It is used anyway, but the flavors might not work as expected. ({set(user_specific_flavors.keys())} <= {set(configured_flavors.keys())})"
-                    )
-                configured_flavors = copy.deepcopy(user_specific_flavors)
+
         flavors = (
             db.query(
                 service_model.Service.flavor,
@@ -457,22 +599,12 @@ class JupyterHubOutpost(Application):
         self.log.debug(
             f"flavors for {jupyterhub_name} - Currently all flavors in database (stopping services not included): {flavors}"
         )
-        undefined_max = await self.get_flavors_undefined_max(jupyterhub_name)
-        ret = {
-            "_undefined": {
-                "max": undefined_max,
-                "current": 0,
-                "display_name": "default flavor",
-                "weight": 1,
-            }
-        }
+        ret = {}
         # Add flavors that are already running
         for flavor in flavors:
             if flavor[0] in configured_flavors.keys():
                 ret[flavor[0]] = configured_flavors[flavor[0]]
                 ret[flavor[0]]["current"] = flavor[1]
-            else:
-                ret["_undefined"]["current"] += flavor[1]
         # Add flavors which are not running yet
         for flavor_name, flavor_description in configured_flavors.items():
             if flavor_name not in ret.keys():
@@ -505,11 +637,13 @@ class JupyterHubOutpost(Application):
         service_name,
         jupyterhub_name,
         flavor_update_url,
+        token,
         add_one_flavor_count=None,
         reduce_one_flavor_count=None,
     ):
         try:
-            token = await self.get_flavors_update_token(jupyterhub_name)
+            if not token:
+                token = await self.get_flavors_update_token(jupyterhub_name)
         except:
             token = False
             self.log.exception(
@@ -560,6 +694,7 @@ class JupyterHubOutpost(Application):
         certs,
         internal_trust_bundles,
         state,
+        user_flavor,
     ):
         # self.config.get('spawner_class', LocalProcessSpawner).get()
         # spawner_class = self.config.get("JupyterHubOutpost", {}).get("spawner_class", LocalProcessSpawner)
@@ -662,16 +797,13 @@ class JupyterHubOutpost(Application):
                     self.log.exception(f"{self._log_name} - Start failed")
                     raise
                 service = get_service(jupyterhub_name, self.name, self.start_id, db)
-                flavors = await wrapper.get_flavors(jupyterhub_name)
-                if service.flavor in flavors.keys():
-                    runtime = flavors[service.flavor].get("runtime", False)
-                    if runtime:
-                        service.end_date = datetime.now(timezone.utc) + timedelta(
-                            **runtime
-                        )
-                        self.log.info(
-                            f"{self._log_name} - Set end_date: {service.end_date}"
-                        )
+
+                runtime = self.flavor.get("runtime", False)
+                if runtime:
+                    service.end_date = datetime.now(timezone.utc) + timedelta(**runtime)
+                    self.log.info(
+                        f"{self._log_name} - Set end_date: {service.end_date}"
+                    )
                 service.state = encrypt(self.get_state())
                 service.state_stored = True
                 service.start_response = encrypt({"service": ret})
@@ -782,6 +914,7 @@ class JupyterHubOutpost(Application):
             orig_body,
             certs,
             internal_trust_bundles,
+            user_flavor,
             **config,
         )
         if state:
@@ -852,6 +985,16 @@ class JupyterHubOutpost(Application):
             max(self.log_level, logging.INFO)
         )
 
+        # In trace will be sensitive information like tokens
+        logging.addLevelName(5, "TRACE")
+
+        def trace_func(self, message, *args, **kws):
+            if self.isEnabledFor(5):
+                # Yes, logger takes its '*args' as 'args'.
+                self._log(5, message, args, **kws)
+
+        logging.Logger.trace = trace_func
+
         for log in (app_log, access_log, gen_log, outpost_log):
             # ensure all log statements identify the application they come from
             log.name = self.log.name
@@ -863,6 +1006,14 @@ class JupyterHubOutpost(Application):
             logger.setLevel(self.log.level)
             if name != logger_name:
                 logger.propagate = True
+
+        for _log in [outpost_log, self.log]:
+            # First call
+            # Remove default StreamHandler
+            if len(_log.handlers) > 0:
+                _log.removeHandler(_log.handlers[0])
+
+            _log.setLevel(5)
 
     def update_logging(self):
         try:
@@ -878,25 +1029,6 @@ class JupyterHubOutpost(Application):
                 ret = yaml.full_load(f)
 
             self.logging_config_cache = ret
-
-            if self.logging_config_last_update == 0:
-                # In trace will be sensitive information like tokens
-                logging.addLevelName(5, "TRACE")
-
-                def trace_func(self, message, *args, **kws):
-                    if self.isEnabledFor(5):
-                        # Yes, logger takes its '*args' as 'args'.
-                        self._log(5, message, args, **kws)
-
-                logging.Logger.trace = trace_func
-
-                for _log in [outpost_log, self.log]:
-                    # First call
-                    # Remove default StreamHandler
-                    if len(_log.handlers) > 0:
-                        _log.removeHandler(_log.handlers[0])
-
-                    _log.setLevel(5)
 
             self.logging_config_last_update = last_change
 

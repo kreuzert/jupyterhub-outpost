@@ -5,6 +5,7 @@ from datetime import timezone
 
 from cryptography.fernet import Fernet
 from pydantic import BaseModel
+from pydantic import ConfigDict
 
 
 def encrypt(data):
@@ -35,14 +36,14 @@ def decrypt(bytes_data, return_type="dict"):
 class JupyterHub(BaseModel):
     name: str
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attribute=True)
 
 
 class Service(BaseModel):
     name: str
     start_id: str
     jupyterhub: JupyterHub | None = None
+    jupyterhub_user_id: int | None = 0
     last_update: datetime | None = datetime.now(timezone.utc)
     start_date: datetime | None = datetime.now(timezone.utc)
     end_date: datetime | None = datetime.max.replace(tzinfo=timezone.utc)
@@ -52,10 +53,9 @@ class Service(BaseModel):
     body: bytes
     state: bytes
     start_response: bytes
-    flavor: str | None = "_undefined"
+    flavor: str | None = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attribute=True)
 
     def __init__(self, *args, **kwargs):
         body = {}
@@ -66,8 +66,6 @@ class Service(BaseModel):
         body["user_options"] = kwargs.pop("user_options", {})
         body["certs"] = kwargs.pop("certs", {})
         body["internal_trust_bundles"] = kwargs.pop("internal_trust_bundles", {})
-        # kwargs["body"] = body
-        kwargs["flavor"] = body.get("user_options", {}).get("flavor", "_undefined")
         kwargs["body"] = encrypt(body)
         state = kwargs.pop("state", {})
         kwargs["state"] = encrypt(state)
@@ -75,4 +73,7 @@ class Service(BaseModel):
         kwargs["start_date"] = now
         kwargs["last_update"] = now
         kwargs["start_response"] = encrypt({})
+        kwargs["jupyterhub_user_id"] = int(
+            body.get("env", {}).get("JUPYTERHUB_USER_ID", "0")
+        )
         super().__init__(*args, **kwargs)

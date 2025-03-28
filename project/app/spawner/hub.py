@@ -50,6 +50,7 @@ class OutpostSpawner:
     environment = {}
     jupyterhub_name = ""
     start_id = ""
+    flavor = {}
 
     def clear_state(self):
         store_unique_id = self.start_id
@@ -64,6 +65,7 @@ class OutpostSpawner:
         orig_body,
         certs,
         internal_trust_bundles,
+        user_flavor,
         **config,
     ):
         self.user = config["user"]
@@ -78,6 +80,7 @@ class OutpostSpawner:
         for key, value in env.items():
             self.environment[key] = str(value)
         self.user_options = orig_body.get("user_options", {})
+        self.flavor = user_flavor
 
         if certs:
             self.internal_ssl = True
@@ -113,7 +116,10 @@ class OutpostSpawner:
             self.environment.pop("JUPYTERHUB_SSL_KEYFILE", None)
             self.environment.pop("JUPYTERHUB_SSL_CLIENT_CA", None)
 
-        super().__init__(**config)
+        for k, v in config.items():
+            if hasattr(self, k):
+                setattr(self, k, v)
+        super().__init__()
 
     def get_env(self):
         env = super().get_env()
