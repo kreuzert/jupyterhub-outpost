@@ -1105,6 +1105,7 @@ class JupyterHubOutpost(Application):
         self.load_config_file(config_file)
         self.init_logging()
         self.log.debug(f"Load config file: {config_file}")
+        self.log.info("Start JupyterHub Outpost Version <VERSION>")
 
     # class for spawning single-user servers
     spawner_class = EntryPointType(
