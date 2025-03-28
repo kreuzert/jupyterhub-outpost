@@ -123,13 +123,10 @@ async def create_ingress(service, jupyterhub_name, spawner):
         spec=ingress_spec,
     )
 
-    try:
-        await api_client.create_namespaced_ingress(
-            namespace=spawner.namespace, body=ingress_body
-        )
-        log.info(f"Ingress '{spawner.pod_name}' created successfully.")
-    except client.ApiException as e:
-        log.exception(f"Error creating ingress: {e}")
+    await api_client.create_namespaced_ingress(
+        namespace=spawner.namespace, body=ingress_body
+    )
+    log.info(f"Ingress '{spawner.pod_name}' created successfully.")
 
 
 async def async_start(
