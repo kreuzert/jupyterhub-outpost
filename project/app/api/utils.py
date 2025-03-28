@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import logging
 import os
@@ -7,7 +6,18 @@ import traceback
 from database.schemas import decrypt
 from database.utils import get_service
 from kubernetes_asyncio import client
-from kubernetes_asyncio import config
+from kubernetes_asyncio.client.models import V1DeleteOptions
+from kubernetes_asyncio.client.models import V1HTTPIngressPath
+from kubernetes_asyncio.client.models import V1HTTPIngressRuleValue
+from kubernetes_asyncio.client.models import V1Ingress
+from kubernetes_asyncio.client.models import V1IngressBackend
+from kubernetes_asyncio.client.models import V1IngressRule
+from kubernetes_asyncio.client.models import V1IngressServiceBackend
+from kubernetes_asyncio.client.models import V1IngressSpec
+from kubernetes_asyncio.client.models import V1IngressTLS
+from kubernetes_asyncio.client.models import V1ObjectMeta
+from kubernetes_asyncio.client.models import V1ServiceBackendPort
+from kubespawner.clients import shared_client
 from spawner import get_spawner
 from spawner import get_wrapper
 from spawner import remove_spawner
@@ -16,29 +26,42 @@ logger_name = os.environ.get("LOGGER_NAME", "JupyterHubOutpost")
 log = logging.getLogger(logger_name)
 
 
-def is_ingress_activated():
+def is_ingress_activated(spawner):
     wrapper = get_wrapper()
     try:
-        if wrapper.config.get("JupyterHubOutpost", {}).get(
-            "spawner_class"
-        ).__name__ == "KubeSpawner" and wrapper.config.get("ingress_enabled", False):
+        if (
+            wrapper.config.get("JupyterHubOutpost", {}).get("spawner_class").__name__
+            == "KubeSpawner"
+            and wrapper.config.get("JupyterHubOutpost", {}).ingress_enabled
+        ):
             return True
     except:
         log.exception("Could not check if ingress is enabled")
     return False
 
 
+async def remove_ingress(spawner):
+    api_client = shared_client("NetworkingV1Api")
+    delete_options = V1DeleteOptions(grace_period_seconds=0)
+    await api_client.delete_namespaced_ingress(
+        name=spawner.pod_name,
+        namespace=spawner.namespace,
+        body=delete_options,
+        grace_period_seconds=0,
+    )
+
+
 async def create_ingress(service, jupyterhub_name, spawner):
-    if not is_ingress_activated():
+    if not is_ingress_activated(spawner):
         return
     log.info(f"{service.name} - Create ingress resource for server")
 
     wrapper = get_wrapper()
-    ingress_class = wrapper.config.get("ingress_class", None)
-    ingress_name = f"{jupyterhub_name}-{service.name}-{spawner.user.id}"
+    ingress_class = wrapper.config.get("JupyterHubOutpost", {}).get(
+        "ingress_class", None
+    )
 
-    await config.load_kube_config()
-    api_instance = client.NetworkingV1Api()
+    api_client = shared_client("NetworkingV1Api")
 
     annotations = {}
     tls_secret = False
@@ -47,33 +70,36 @@ async def create_ingress(service, jupyterhub_name, spawner):
         annotations["nginx.ingress.kubernetes.io/ssl-passthrough"] = "true"
         annotations["nginx.ingress.kubernetes.io/backend-protocol"] = "HTTPS"
     else:
-        tls_secret = wrapper.config.get("ingress_tls_secretname", False)
+        tls_secret = wrapper.config.get("JupyterHubOutpost", {}).get(
+            "ingress_tls_secretname", False
+        )
 
     if ingress_class:
         annotations["kubernetes.io/ingress.class"] = ingress_class
 
-    dns_name = wrapper.config.get("ingress_host", "host.com")
-
-    ingress_metadata = client.V1ObjectMeta(
-        name=ingress_name, namespace=spawner.namespace, annotations=annotations
+    ingress_metadata = V1ObjectMeta(
+        name=spawner.pod_name, namespace=spawner.namespace, annotations=annotations
     )
-    base_url = spawner.get_env().get("JUPYTERHUB_BASE_URL", "/")
-    path = f"{base_url}{spawner.user.name}"
-    ingress_spec = client.V1IngressSpec(
+
+    dns_name = wrapper.config.get("JupyterHubOutpost", {}).get(
+        "ingress_host", "host.com"
+    )
+
+    base_url = spawner.hub.base_url
+    path = f"{base_url}{spawner.user.name}/{spawner.name}"
+    ingress_spec = V1IngressSpec(
         rules=[
-            client.V1IngressRule(
+            V1IngressRule(
                 host=dns_name,
-                http=client.V1HTTPIngressRuleValue(
+                http=V1HTTPIngressRuleValue(
                     paths=[
-                        client.V1HTTPIngressPath(
-                            path="/",
+                        V1HTTPIngressPath(
+                            path=path,
                             path_type="Prefix",
-                            backend=client.V1IngressBackend(
-                                service=client.V1IngressServiceBackend(
+                            backend=V1IngressBackend(
+                                service=V1IngressServiceBackend(
                                     name=spawner.dns_name.split(".")[0],
-                                    port=client.V1ServiceBackendPort(
-                                        number=spawner.port
-                                    ),
+                                    port=V1ServiceBackendPort(number=spawner.port),
                                 )
                             ),
                         )
@@ -85,11 +111,12 @@ async def create_ingress(service, jupyterhub_name, spawner):
 
     # If SSL passthrough is disabled, add TLS termination
     if tls_secret:
-        ingress_spec.tls = [
-            client.V1IngressTLS(hosts=[dns_name], secret_name=tls_secret)
-        ]
+        ingress_spec.tls = [V1IngressTLS(hosts=[dns_name], secret_name=tls_secret)]
 
-    ingress_body = client.V1Ingress(
+    if ingress_class:
+        ingress_spec.ingress_class_name = ingress_class
+
+    ingress_body = V1Ingress(
         api_version="networking.k8s.io/v1",
         kind="Ingress",
         metadata=ingress_metadata,
@@ -97,14 +124,12 @@ async def create_ingress(service, jupyterhub_name, spawner):
     )
 
     try:
-        await api_instance.create_namespaced_ingress(
+        await api_client.create_namespaced_ingress(
             namespace=spawner.namespace, body=ingress_body
         )
-        log.info(f"Ingress '{ingress_name}' created successfully.")
+        log.info(f"Ingress '{spawner.pod_name}' created successfully.")
     except client.ApiException as e:
         log.exception(f"Error creating ingress: {e}")
-    finally:
-        await api_instance.api_client.close()  # Ensure the connection is closed
 
 
 async def async_start(
@@ -184,7 +209,12 @@ async def validate_flavor(service, jupyterhub_name, request, db):
     wrapper = get_wrapper()
 
     # 1. Is flavor set?
-    if not service.flavor:
+    flavor = service.flavor
+    if not flavor:
+        dec_body = decrypt(service.body)
+        flavor = dec_body.pop("user_options", {}).get("flavor", None)
+
+    if not flavor:
         raise Exception(
             f"{service.name} - Start without flavor not allowed. Define user_options.flavor"
         )
@@ -197,33 +227,31 @@ async def validate_flavor(service, jupyterhub_name, request, db):
     dec_body = decrypt(service.body)
     user_id = int(dec_body.get("env", {}).get("JUPYTERHUB_USER_ID", "0"))
 
-    if service.flavor in current_flavor_values.keys():
-        current_flavor_value = current_flavor_values.get(service.flavor, {}).get(
-            "current", 0
-        )
+    if flavor in current_flavor_values.keys():
+        current_flavor_value = current_flavor_values.get(flavor, {}).get("current", 0)
         user_servers_flavor = (
             await wrapper._outpostspawner_flavor_max_user_flavor_validation(
-                db, jupyterhub_name, service.flavor, user_id
+                db, jupyterhub_name, flavor, user_id
             )
         )
-        flavor_max_per_user = current_flavor_values.get(service.flavor, {}).get(
+        flavor_max_per_user = current_flavor_values.get(flavor, {}).get(
             "maxPerUser", None
         )
         # 2. User has reached maximum of services per-user limit
         if flavor_max_per_user and user_servers_flavor >= flavor_max_per_user:
             raise Exception(
-                f"{service.name} - Start with flavor {service.flavor} not allowed. Each user may only start {flavor_max_per_user} of {service.flavor}"
+                f"{service.name} - Start with flavor {flavor} not allowed. Each user may only start {flavor_max_per_user} of {flavor}"
             )
     else:
         raise Exception(
-            f"{service.name} - Start with flavor {service.flavor} not allowed. Allowed values for user: {list(current_flavor_values.keys())}"
+            f"{service.name} - Start with flavor {flavor} not allowed. Allowed values for user: {list(current_flavor_values.keys())}"
         )
 
-    max_flavor_value = current_flavor_values.get(service.flavor, {}).get("max", -1)
+    max_flavor_value = current_flavor_values.get(flavor, {}).get("max", -1)
     if current_flavor_value >= max_flavor_value and max_flavor_value != -1:
         # 3. All users + hubs together have reached the maximum per-flavor limit
         raise Exception(
-            f"{service.name} - Start with {service.flavor} for {jupyterhub_name} not allowed. Maximum ({max_flavor_value}) already reached."
+            f"{service.name} - Start with {flavor} for {jupyterhub_name} not allowed. Maximum ({max_flavor_value}) already reached."
         )
 
     # Unrelated to the flavor, each user should have a maximum list of servers
@@ -238,7 +266,7 @@ async def validate_flavor(service, jupyterhub_name, request, db):
             f"{service.name} - User with user id {user_id} of {jupyterhub_name} has reached the maximum limit of services ({wrapper.global_max_per_user})"
         )
 
-    return current_flavor_values[service.flavor]
+    return current_flavor_values[flavor]
 
 
 async def full_stop_and_remove(
@@ -284,6 +312,11 @@ async def full_stop_and_remove(
         auth_state,
         state,
     )
+    try:
+        await remove_ingress(spawner)
+    except:
+        log.exception(f"{spawner._log_name} - Could not remove ingress resource")
+
     flavor_update_url = spawner.get_env().get("JUPYTERHUB_FLAVORS_UPDATE_URL", "")
     flavor_update_token = spawner.get_env().get("JUPYTERHUB_FLAVORS_UPDATE_TOKEN", "")
     spawner.log.info(f"{spawner._log_name} - Stop service and remove it from database.")
