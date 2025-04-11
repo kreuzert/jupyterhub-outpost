@@ -3,7 +3,6 @@ from datetime import timezone
 from typing import List
 
 from database import Base
-from database.schemas import encrypt
 from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import ForeignKey

@@ -4,8 +4,8 @@ NAMESPACE=outpost
 INSTANCE_NAME="kube"
 SECRET_USERS="outpost-users"
 SECRET_CRYPTKEY="outpost-cryptkey"
-SECRET_GENERICS=""
-SECRET_DB="outpost-db"
+SECRET_GENERICS="outpost-generics"
+SECRET_DB="outpost.kubeoutpost.postgresql.credentials.postgresql.acid.zalan.do"
 
 POD_NAME=$(kubectl -n ${NAMESPACE} get pods --selector app.kubernetes.io/instance=${INSTANCE_NAME} -o jsonpath='{.items..metadata.name}')
 echo $POD_NAME
@@ -35,20 +35,20 @@ else
     PASSWORDS=$(kubectl -n ${NAMESPACE} get secret ${SECRET_USERS} -o jsonpath='{.data.passwords}' | base64 -d)
 
     if [[ ! $SECRET_GENERICS == "" ]]; then
-        JUPYTERHUB_CLEANUP_NAMES=$(kubectl -n ${NAMESPACE} get secret outpost-generics -o jsonpath='{.data.JUPYTERHUB_CLEANUP_NAMES}' | base64 -d)
-        JUPYTERHUB_CLEANUP_TOKENS=$(kubectl -n ${NAMESPACE} get secret outpost-generics -o jsonpath='{.data.JUPYTERHUB_CLEANUP_TOKENS}' | base64 -d)
-        JUPYTERHUB_CLEANUP_URLS=$(kubectl -n ${NAMESPACE} get secret outpost-generics -o jsonpath='{.data.JUPYTERHUB_CLEANUP_URLS}' | base64 -d)
-        FLAVOR_DEV1_AUTH_TOKEN=$(kubectl -n ${NAMESPACE} get secret outpost-generics -o jsonpath='{.data.FLAVOR_DEV1_AUTH_TOKEN}' | base64 -d)
-        FLAVOR_DEV2_AUTH_TOKEN=$(kubectl -n ${NAMESPACE} get secret outpost-generics -o jsonpath='{.data.FLAVOR_DEV2_AUTH_TOKEN}' | base64 -d)
+        JUPYTERHUB_CLEANUP_NAMES=$(kubectl -n ${NAMESPACE} get secret ${SECRET_GENERICS} -o jsonpath='{.data.JUPYTERHUB_CLEANUP_NAMES}' | base64 -d)
+        JUPYTERHUB_CLEANUP_TOKENS=$(kubectl -n ${NAMESPACE} get secret ${SECRET_GENERICS} -o jsonpath='{.data.JUPYTERHUB_CLEANUP_TOKENS}' | base64 -d)
+        JUPYTERHUB_CLEANUP_URLS=$(kubectl -n ${NAMESPACE} get secret ${SECRET_GENERICS} -o jsonpath='{.data.JUPYTERHUB_CLEANUP_URLS}' | base64 -d)
+        FLAVOR_DEV1_AUTH_TOKEN=$(kubectl -n ${NAMESPACE} get secret ${SECRET_GENERICS} -o jsonpath='{.data.FLAVOR_DEV1_AUTH_TOKEN}' | base64 -d)
+        FLAVOR_DEV2_AUTH_TOKEN=$(kubectl -n ${NAMESPACE} get secret ${SECRET_GENERICS} -o jsonpath='{.data.FLAVOR_DEV2_AUTH_TOKEN}' | base64 -d)
+        SQL_DATABASE=$(kubectl -n ${NAMESPACE} get secret ${SECRET_GENERICS} -o jsonpath='{.data.SQL_DATABASE}' | base64 -d)
+        SQL_HOST=$(kubectl -n ${NAMESPACE} get secret ${SECRET_GENERICS} -o jsonpath='{.data.SQL_HOST}' | base64 -d)
+        SQL_PORT=$(kubectl -n ${NAMESPACE} get secret ${SECRET_GENERICS} -o jsonpath='{.data.SQL_PORT}' | base64 -d)
+        SQL_TYPE=$(kubectl -n ${NAMESPACE} get secret ${SECRET_GENERICS} -o jsonpath='{.data.SQL_TYPE}' | base64 -d)
     fi
 
-    SQL_USER=$(kubectl -n ${NAMESPACE} get secret ${SECRET_DB} -o jsonpath='{.data.SQL_USER}' | base64 -d)
-    SQL_DATABASE=$(kubectl -n ${NAMESPACE} get secret ${SECRET_DB} -o jsonpath='{.data.SQL_DATABASE}' | base64 -d)
-    SQL_PASSWORD=$(kubectl -n ${NAMESPACE} get secret ${SECRET_DB} -o jsonpath='{.data.SQL_PASSWORD}' | base64 -d)
+    SQL_USER=$(kubectl -n ${NAMESPACE} get secret ${SECRET_DB} -o jsonpath='{.data.username}' | base64 -d)
+    SQL_PASSWORD=$(kubectl -n ${NAMESPACE} get secret ${SECRET_DB} -o jsonpath='{.data.password}' | base64 -d)
 
-    SQL_HOST=$(kubectl -n ${NAMESPACE} get secret ${SECRET_DB} -o jsonpath='{.data.SQL_HOST}' | base64 -d)
-    SQL_PORT=$(kubectl -n ${NAMESPACE} get secret ${SECRET_DB} -o jsonpath='{.data.SQL_PORT}' | base64 -d)
-    SQL_TYPE=$(kubectl -n ${NAMESPACE} get secret ${SECRET_DB} -o jsonpath='{.data.SQL_TYPE}' | base64 -d)
 
     sed -e "s@<FLAVOR_DEV2_AUTH_TOKEN>@${FLAVOR_DEV2_AUTH_TOKEN}@g" -e "s@<FLAVOR_DEV1_AUTH_TOKEN>@${FLAVOR_DEV1_AUTH_TOKEN}@g" -e "s@<JUPYTERHUB_CLEANUP_NAMES>@${JUPYTERHUB_CLEANUP_NAMES}@g" -e "s@<JUPYTERHUB_CLEANUP_TOKENS>@${JUPYTERHUB_CLEANUP_TOKENS}@g" -e "s@<JUPYTERHUB_CLEANUP_URLS>@${JUPYTERHUB_CLEANUP_URLS}@g" -e "s@<usernames>@${USERNAMES}@g" -e "s@<passwords>@${PASSWORDS}@g" -e "s@<crypt_key>@${CRYPT_KEY}@g" -e "s@<SQL_TYPE>@${SQL_TYPE}@g" -e "s@<SQL_PASSWORD>@${SQL_PASSWORD}@g" -e "s@<SQL_DATABASE>@${SQL_DATABASE}@g" -e "s@<SQL_HOST>@${SQL_HOST}@g" -e "s@<SQL_PORT>@${SQL_PORT}@g" -e "s@<SQL_USER>@${SQL_USER}@g" -e "s@<KUBERNETES_SERVICE_HOST>@${KUBERNETES_SERVICE_HOST}@g" -e "s@<KUBERNETES_SERVICE_PORT>@${KUBERNETES_SERVICE_PORT}@g" ${DIR}/launch.json.template > ${DIR}/launch.json
 

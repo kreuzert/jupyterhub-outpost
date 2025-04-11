@@ -2,7 +2,7 @@ import copy
 from unittest.mock import patch
 
 import pytest
-from spawner.outpost import JupyterHubOutpost
+import spawner
 from tests.conftest import auth_user2_b64
 from tests.conftest import auth_user_b64
 from tests.conftest import auth_user_wrong_pw
@@ -46,9 +46,9 @@ simple_flavors = {
 
 @pytest.mark.parametrize("spawner_config", [simple_authorization])
 def test_authorization(client):
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/userflavors",
             json={"username": "user1@mycomp.org"},
@@ -60,9 +60,9 @@ def test_authorization(client):
     expected_flavors["typeb"]["current"] = 0
     assert response.json() == expected_flavors
 
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response2 = client.post(
             "/userflavors",
             json={"username": "user1@other.org"},
@@ -79,9 +79,9 @@ def test_authorization_flavor_hub_flavors(client):
     expected_user_flavors = {"typea": mock_flavor_data["flavors"]["typea"]}
     expected_user_flavors["typea"]["current"] = 0
 
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=mock_flavor_data
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=mock_flavor_data
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=mock_flavor_data):
         response = client.post(
             "/userflavors", json={"username": "user1"}, headers=headers_auth_user
         )
@@ -102,9 +102,9 @@ def test_authorization_flavor_hub_flavorsoverride(client):
     expected_user_flavors["typea"]["max"] = 18
     expected_user_flavors["typea"]["runtime"] = {"hours": 1}
 
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=mock_flavor_data
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=mock_flavor_data
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=mock_flavor_data):
         response = client.post(
             "/userflavors", json={"username": "user1"}, headers=headers_auth_user
         )
@@ -136,9 +136,9 @@ def test_authorization_flavor_user_flavorsoverride(client):
     expected_user_flavors["typea"]["runtime"] = {"hours": 2}
     expected_user_flavors["typeb"]["current"] = 0
 
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=mock_flavor_data
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=mock_flavor_data
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=mock_flavor_data):
         response = client.post(
             "/userflavors", json={"username": "user1"}, headers=headers_auth_user
         )
@@ -176,9 +176,9 @@ def test_authorization_flavor_user_flavorsoverride_weight(client):
     expected_user_flavors["typea"]["runtime"] = {"hours": 4}
     expected_user_flavors["typeb"]["current"] = 0
 
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=mock_flavor_data
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=mock_flavor_data
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=mock_flavor_data):
         response = client.post(
             "/userflavors", json={"username": "user1"}, headers=headers_auth_user
         )
@@ -210,9 +210,9 @@ def test_authorization_flavor_user_flavorsoverride_regex(client):
     expected_user_flavors["typea"]["runtime"] = {"hours": 2}
     expected_user_flavors["typeb"]["current"] = 0
 
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=mock_flavor_data
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=mock_flavor_data
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=mock_flavor_data):
         response = client.post(
             "/userflavors", json={"username": "user1"}, headers=headers_auth_user
         )
@@ -250,9 +250,9 @@ def test_authorization_flavor_user_flavorsoverride_regex_nomatch(client):
     expected_user_flavors["typea"]["runtime"] = {"hours": 4}
     expected_user_flavors["typeb"]["current"] = 0
 
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=mock_flavor_data
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=mock_flavor_data
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=mock_flavor_data):
         response = client.post(
             "/userflavors", json={"username": "user1"}, headers=headers_auth_user
         )
@@ -282,7 +282,9 @@ def test_authorization_users_negate_minimal(client):
 
     # users with username ending with mycomp.org will get the flavors typea and typeb.
     # All other users will get only the minimal flavor
-    with patch.object(JupyterHubOutpost, "get_flavors_from_disk", return_value=flavors):
+    with patch("spawner.outpost.get_flavors_from_disk", return_value=flavors), patch(
+        "spawner.utils.get_flavors_from_disk", return_value=flavors
+    ):
         response = client.post(
             "/userflavors",
             json={"username": "user1@mycomp.org"},
@@ -291,7 +293,9 @@ def test_authorization_users_negate_minimal(client):
     assert response.status_code == 200, response.json()
     assert list(response.json().keys()) == ["typea", "typeb"], response.json()
 
-    with patch.object(JupyterHubOutpost, "get_flavors_from_disk", return_value=flavors):
+    with patch("spawner.outpost.get_flavors_from_disk", return_value=flavors), patch(
+        "spawner.utils.get_flavors_from_disk", return_value=flavors
+    ):
         response2 = client.post(
             "/userflavors",
             json={"username": "user1@other.org"},
@@ -322,7 +326,9 @@ def test_authorization_users_negate_forbidden(client):
 
     # users with username ending with mycomp.org will get the flavors typea and typeb.
     # All other users will get nothing
-    with patch.object(JupyterHubOutpost, "get_flavors_from_disk", return_value=flavors):
+    with patch("spawner.outpost.get_flavors_from_disk", return_value=flavors), patch(
+        "spawner.utils.get_flavors_from_disk", return_value=flavors
+    ):
         response = client.post(
             "/userflavors",
             json={"username": "user1@mycomp.org"},
@@ -331,7 +337,9 @@ def test_authorization_users_negate_forbidden(client):
     assert response.status_code == 200, response.json()
     assert list(response.json().keys()) == ["typea", "typeb"], response.json()
 
-    with patch.object(JupyterHubOutpost, "get_flavors_from_disk", return_value=flavors):
+    with patch("spawner.outpost.get_flavors_from_disk", return_value=flavors), patch(
+        "spawner.utils.get_flavors_from_disk", return_value=flavors
+    ):
         response2 = client.post(
             "/userflavors",
             json={"username": "user1@other.org"},

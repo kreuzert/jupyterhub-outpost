@@ -16,6 +16,28 @@ if [ "$SQL_TYPE" == "postgresql" ]; then
         sleep 0.1
     done
     echo "$(date) PostgreSQL started"
+
+    PSQL_CMD="psql -h $SQL_HOST -U $SQL_USER -d $SQL_DATABASE -tAc"
+
+    CHECK_COLUMN_EXISTS="$PSQL_CMD \"
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+          AND table_name = 'service' 
+          AND column_name = 'jupyterhub_user_id';
+    \""
+
+    # Run the check
+    COLUMN_EXISTS=$(eval $CHECK_COLUMN_EXISTS)
+
+    if [ "$COLUMN_EXISTS" != "1" ]; then
+        echo "$(date) Column does not exist. Adding column 'jupyterhub_user_id'..."
+        ADD_COLUMN_SQL="
+        ALTER TABLE public.service
+        ADD COLUMN jupyterhub_user_id INTEGER DEFAULT 0;
+        "
+        echo "$ADD_COLUMN_SQL" | PGPASSWORD="$SQL_PASSWORD" psql -h "$SQL_HOST" -U "$SQL_USER" -d "$SQL_DATABASE"
+        echo "$(date) Column added."
+    fi
 elif [ "${SQL_TYPE:-sqlite}" == "sqlite" ]; then
     touch ${SQL_DATABASE_URL:-/tmp/sqlite.db}
     chmod 666 ${SQL_DATABASE_URL:-/tmp/sqlite.db}

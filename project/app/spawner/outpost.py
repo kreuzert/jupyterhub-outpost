@@ -46,6 +46,8 @@ from .hub import certs_dir
 from .hub import OutpostJupyterHub
 from .hub import OutpostSpawner
 from .hub import OutpostUser
+from .utils import get_flavors_from_disk
+
 
 logger_name = os.environ.get("LOGGER_NAME", "JupyterHubOutpost")
 outpost_log = logging.getLogger(logger_name)
@@ -215,16 +217,11 @@ class JupyterHubOutpost(Application):
         """,
     )
 
-    def get_flavors_from_disk(self):
-        path = os.environ.get("OUTPOST_FLAVORS_PATH", "/mnt/flavors/flavors.yaml")
-        if (not os.path.exists(path)) or (not os.path.isfile(path)):
-            return {}
-        with open(path, "r") as f:
-            flavor_config = yaml.full_load(f)
-        return flavor_config
-
     async def get_flavors(self, jupyterhub_name):
-        flavor_config = self.get_flavors_from_disk()
+        flavor_config = get_flavors_from_disk()
+
+        if not flavor_config:
+            return {}
 
         # If no hub is defined, return all available flavors
         if not jupyterhub_name:
@@ -369,7 +366,7 @@ class JupyterHubOutpost(Application):
         if not authentication:
             return hub_flavors
 
-        flavor_config = self.get_flavors_from_disk()
+        flavor_config = get_flavors_from_disk()
 
         if not flavor_config.get("users", {}):
             self.log.info(
@@ -798,7 +795,11 @@ class JupyterHubOutpost(Application):
                     raise
                 service = get_service(jupyterhub_name, self.name, self.start_id, db)
 
-                runtime = self.flavor.get("runtime", False)
+                runtime = False
+                try:
+                    runtime = self.flavor.get("runtime", False)
+                except:
+                    pass
                 if runtime:
                     service.end_date = datetime.now(timezone.utc) + timedelta(**runtime)
                     self.log.info(

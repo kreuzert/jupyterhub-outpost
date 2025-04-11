@@ -2,6 +2,10 @@ project/.vscode
 project/test.db
 **/*.db
 
+devel/devel
+devel/devel.pub
+devel/launch.json
+
 # local tests #
 uwsgi.local.ini 
 

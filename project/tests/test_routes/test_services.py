@@ -11,7 +11,6 @@ from app.database.schemas import encrypt
 from app.database.utils import get_service
 from pytest import raises
 from spawner import get_spawner
-from spawner.outpost import JupyterHubOutpost
 from tests.conftest import auth_user2_b64
 from tests.conftest import auth_user_b64
 from tests.conftest import auth_user_wrong_pw
@@ -79,19 +78,86 @@ expected_flavors = {
 
 @pytest.mark.parametrize("spawner_config", [simple_flavors_max_0])
 def test_flavors_endpoint(client):
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.get("/flavors", headers=headers_auth_user)
     assert response.status_code == 200
     assert response.json() == expected_flavors
 
     flavors = copy.deepcopy(simple_flavors)
     flavors["hubs"]["auth2"]["flavors"] = []
-    with patch.object(JupyterHubOutpost, "get_flavors_from_disk", return_value=flavors):
+    with patch("spawner.outpost.get_flavors_from_disk", return_value=flavors), patch(
+        "spawner.utils.get_flavors_from_disk", return_value=flavors
+    ):
         response = client.get("/flavors", headers=headers_auth_user2)
     assert response.status_code == 200
     assert response.json() == {}
+
+
+@pytest.mark.parametrize("spawner_config", [simple])
+def test_create_get_no_flavor(client):
+    service_name = "user-servername"
+    service_data = {"name": service_name, "env": {"JUPYTERHUB_USER": "user1"}}
+    with patch("spawner.outpost.get_flavors_from_disk", return_value={}), patch(
+        "spawner.utils.get_flavors_from_disk", return_value={}
+    ):
+        response = client.post(
+            "/services", json=service_data, headers=headers_auth_user
+        )
+    assert response.status_code == 200, response.text
+    assert "service" in response.json().keys()
+    assert response.json().get("service", "") == "127.0.0.1:4567"
+
+    with patch("spawner.outpost.get_flavors_from_disk", return_value={}), patch(
+        "spawner.utils.get_flavors_from_disk", return_value={}
+    ):
+        response = client.get(f"/services/{service_name}", headers=headers_auth_user)
+    assert response.status_code == 200
+    assert response.json().get("status", "") == 0
+
+
+@pytest.mark.parametrize("spawner_config", [simple])
+def test_create_get_no_flavor_configured_but_set(client):
+    service_name = "user-servername"
+    service_data = {
+        "name": service_name,
+        "env": {"JUPYTERHUB_USER": "user1"},
+        "flavor": "typea",
+    }
+    with patch("spawner.outpost.get_flavors_from_disk", return_value={}), patch(
+        "spawner.utils.get_flavors_from_disk", return_value={}
+    ):
+        response = client.post(
+            "/services", json=service_data, headers=headers_auth_user
+        )
+    assert response.status_code == 200, response.text
+    assert "service" in response.json().keys()
+    assert response.json().get("service", "") == "127.0.0.1:4567"
+
+    with patch("spawner.outpost.get_flavors_from_disk", return_value={}), patch(
+        "spawner.utils.get_flavors_from_disk", return_value={}
+    ):
+        response = client.get(f"/services/{service_name}", headers=headers_auth_user)
+    assert response.status_code == 200
+    assert response.json().get("status", "") == 0
+
+
+@pytest.mark.parametrize("spawner_config", [simple])
+def test_create_get_use_unconfigured_flavor(client):
+    service_name = "user-servername"
+    service_data = {
+        "name": service_name,
+        "env": {"JUPYTERHUB_USER": "user1"},
+        "flavor": "typec",
+    }
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
+        response = client.post(
+            "/services", json=service_data, headers=headers_auth_user
+        )
+    assert response.status_code == 419, response.text
 
 
 @pytest.mark.parametrize("spawner_config", [simple])
@@ -102,9 +168,9 @@ def test_create_get(client):
         "env": {"JUPYTERHUB_USER": "user1"},
         "flavor": "typea",
     }
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
@@ -112,9 +178,9 @@ def test_create_get(client):
     assert "service" in response.json().keys()
     assert response.json().get("service", "") == "127.0.0.1:4567"
 
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.get(f"/services/{service_name}", headers=headers_auth_user)
     assert response.status_code == 200
     assert response.json().get("status", "") == 0
@@ -128,9 +194,9 @@ def test_create_get_running(client):
         "misc": {"cmd": "sleep", "args": "5"},
         "flavor": "typea",
     }
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
@@ -138,9 +204,9 @@ def test_create_get_running(client):
     assert "service" in response.json().keys()
     assert response.json().get("service", "") == "127.0.0.1:4567"
 
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.get(f"/services/{service_name}", headers=headers_auth_user)
     assert response.status_code == 200
     assert response.json().get("status", "") == None
@@ -154,30 +220,30 @@ def test_delete(client, db_session):
         "misc": {"cmd": "sleep", "args": "5"},
         "flavor": "typea",
     }
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
     assert response.status_code == 200, response.text
 
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.get(f"/services/{service_name}", headers=headers_auth_user)
     assert response.status_code == 200, response.text
     assert response.json().get("status", "") == None
 
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.delete(f"/services/{service_name}", headers=headers_auth_user)
     assert response.status_code == 200, response.text
 
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.get(f"/services/{service_name}", headers=headers_auth_user)
     assert response.status_code == 404, response.text
 
@@ -198,9 +264,9 @@ def test_list_respects_authentication(client):
         "misc": {"cmd": "sleep", "args": "5"},
         "flavor": "typea",
     }
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
@@ -215,9 +281,9 @@ def test_list_respects_authentication(client):
 
 @pytest.mark.parametrize("spawner_config", [simple])
 def test_list_userid(client):
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.get("/services/", headers=headers_auth_user)
     assert response.status_code == 200, response.text
     assert response.json() == []
@@ -229,9 +295,9 @@ def test_list_userid(client):
         "flavor": "typea",
         "user_options": {"flavor": "typea"},
     }
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
@@ -243,9 +309,9 @@ def test_list_userid(client):
 
 @pytest.mark.parametrize("spawner_config", [simple])
 def test_401_endpoints(client):
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.get("/services/0/0", headers=headers_auth_wrong_pw)
         assert response.status_code == 401, response.text
         response = client.delete("/services/0/0", headers=headers_auth_wrong_pw)
@@ -258,9 +324,9 @@ def test_401_endpoints(client):
         "misc": {"cmd": "sleep", "args": "5"},
         "flavor": "typea",
     }
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_wrong_pw
         )
@@ -269,9 +335,9 @@ def test_401_endpoints(client):
 
 @pytest.mark.parametrize("spawner_config", [simple])
 def test_list(client):
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.get("/services/", headers=headers_auth_user)
     assert response.status_code == 200, response.text
     assert response.json() == []
@@ -279,27 +345,27 @@ def test_list(client):
 
 @pytest.mark.parametrize("spawner_config", [simple])
 def test_404_get(client):
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.get("/services/0", headers=headers_auth_user)
     assert response.status_code == 404, response.text
 
 
 @pytest.mark.parametrize("spawner_config", [simple])
 def test_404_delete(client):
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.delete("/services/0", headers=headers_auth_user)
     assert response.status_code == 404, response.text
 
 
 @pytest.mark.parametrize("spawner_config", [simple])
 def not_yet_test_404_patch(client):
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.patch("/services/0")
     assert response.status_code == 404, response.text
 
@@ -308,9 +374,9 @@ def not_yet_test_404_patch(client):
 def test_create_start_sanitize_default(client):
     service_name = "user-servername"
     service_data = {"name": service_name, "flavor": "typea"}
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
@@ -321,9 +387,9 @@ def test_create_start_sanitize_default(client):
 @pytest.mark.parametrize("spawner_config", [simple_sanitized])
 def test_create_start_sanitize(client):
     service_name = "user-servername"
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services",
             json={"name": service_name, "flavor": "typea"},
@@ -336,9 +402,9 @@ def test_create_start_sanitize(client):
 def test_last_update_updated(client, db_session):
     service_name = "user-servername"
     service_data = {"name": service_name, "flavor": "typea"}
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
@@ -372,9 +438,9 @@ async def test_certs_not_stored_in_db(client, db_session):
         },
         "env": {"JUPYTERHUB_USER": "user"},
     }
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
@@ -405,9 +471,9 @@ async def test_certs_not_stored_in_db(client, db_session):
 def test_do_not_get_other_services(client, db_session):
     service_name = "user-servername"
     service_data = {"name": service_name, "flavor": "typea"}
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
@@ -422,9 +488,9 @@ def test_do_not_get_other_services(client, db_session):
 def test_do_not_delete_other_services(client, db_session):
     service_name = "user-servername"
     service_data = {"name": service_name, "flavor": "typea"}
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
@@ -442,9 +508,9 @@ def test_allow_same_name_twice_different_jupyterhub(client, db_session):
     # Two different jupyterhub can start services with the same name
     service_name = "user-servername"
     service_data = {"name": service_name, "flavor": "typea"}
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         _ = client.post("/services", json=service_data, headers=headers_auth_user)
         _ = client.post("/services", json=service_data, headers=headers_auth_user2)
     service1 = get_service("authenticated", service_name, "0", db_session)
@@ -466,9 +532,9 @@ def test_override_allowed(client, db_session):
         "flavor": "typea",
         "misc": {"image": "override_image"},
     }
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
@@ -484,9 +550,9 @@ def test_override_allowed_419(client, db_session):
         "flavor": "typea",
         "misc": {"image": "override_image"},
     }
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user2
         )
@@ -502,9 +568,9 @@ def test_override_allowed_419_error_msg(client, db_session):
         "flavor": "typea",
         "misc": {"image": "override_image"},
     }
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user2
         )
@@ -521,9 +587,9 @@ def test_override_allowed_419_error_msg(client, db_session):
 def test_override_allowed_no_misc_always_allowed(client, db_session):
     service_name = "user-servername"
     service_data = {"name": service_name, "flavor": "typea"}
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user2
         )
@@ -542,9 +608,9 @@ def test_auth_state_in_start_poll_stop(client, db_session):
     }
     headers = copy.deepcopy(headers_auth_user)
     headers["Auth-State-access_token"] = "secret"
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post("/services", json=service_data, headers=headers)
     assert response.status_code == 200, response.text
 
@@ -571,9 +637,9 @@ def test_auth_state_in_start_poll_async_stop(client, db_session):
     }
     headers = copy.deepcopy(headers_auth_user)
     headers["Auth-State-access_token"] = "secret"
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post("/services", json=service_data, headers=headers)
     assert response.status_code == 200, response.text
 
@@ -602,7 +668,9 @@ async def test_flavor_max_0(client, db_session):
     }
     flavors = copy.deepcopy(simple_flavors)
     flavors["flavors"]["typea"]["max"] = 0
-    with patch.object(JupyterHubOutpost, "get_flavors_from_disk", return_value=flavors):
+    with patch("spawner.outpost.get_flavors_from_disk", return_value=flavors), patch(
+        "spawner.utils.get_flavors_from_disk", return_value=flavors
+    ):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
@@ -622,9 +690,9 @@ async def test_flavor_global_max_0(client, db_session):
         "flavor": "typea",
         "env": {"JUPYTERHUB_USER": "user1"},
     }
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
@@ -649,9 +717,9 @@ async def test_flavor_global_max_1(client, db_session):
         "flavor": "typea",
         "env": {"JUPYTERHUB_USER": "user1"},
     }
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
@@ -682,7 +750,9 @@ async def test_flavor_flavor_max_per_user_1(client, db_session):
         "flavor": "typea",
         "env": {"JUPYTERHUB_USER": "user1"},
     }
-    with patch.object(JupyterHubOutpost, "get_flavors_from_disk", return_value=flavor):
+    with patch("spawner.outpost.get_flavors_from_disk", return_value=flavor), patch(
+        "spawner.utils.get_flavors_from_disk", return_value=flavor
+    ):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
@@ -706,9 +776,9 @@ async def test_flavor_runtime_in_enddate(client, db_session):
         "env": {"JUPYTERHUB_USER": "user1"},
         "flavor": "typea",
     }
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
@@ -739,7 +809,9 @@ async def test_flavor_runtime_in_enddate_flavor_override(client, db_session):
             "flavorsOverride": {"typea": {"runtime": {"hours": 4}}},
         }
     }
-    with patch.object(JupyterHubOutpost, "get_flavors_from_disk", return_value=flavors):
+    with patch("spawner.outpost.get_flavors_from_disk", return_value=flavors), patch(
+        "spawner.utils.get_flavors_from_disk", return_value=flavors
+    ):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
@@ -764,7 +836,9 @@ async def test_flavor_runtime_no_enddate(client, db_session):
     }
     flavors = copy.deepcopy(simple_flavors)
     del flavors["flavors"]["typea"]["runtime"]
-    with patch.object(JupyterHubOutpost, "get_flavors_from_disk", return_value=flavors):
+    with patch("spawner.outpost.get_flavors_from_disk", return_value=flavors), patch(
+        "spawner.utils.get_flavors_from_disk", return_value=flavors
+    ):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user2
         )
@@ -840,10 +914,11 @@ async def test_flavor_hub_specific_allowance(client, db_session, monkeypatch):
     # This should be fine
     i = 0
     for service_d in service_data[:5]:
-        with patch.object(
-            JupyterHubOutpost,
-            "get_flavors_from_disk",
+        with patch(
+            "spawner.outpost.get_flavors_from_disk",
             return_value=simple_flavors_local,
+        ), patch(
+            "spawner.utils.get_flavors_from_disk", return_value=simple_flavors_local
         ):
             response = client.post(
                 "/services", json=service_d, headers=headers_auth_user
@@ -860,9 +935,9 @@ async def test_flavor_hub_specific_allowance(client, db_session, monkeypatch):
             assert calls == i
 
     # The sixth one should fail
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors_local
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors_local
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors_local):
         response = client.post(
             "/services", json=service_data[5], headers=headers_auth_user
         )
@@ -887,9 +962,9 @@ async def test_flavor_hub_specific_allowance(client, db_session, monkeypatch):
     assert calls == i
 
     # The sixth one should now succeed
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors_local
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors_local
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors_local):
         response = client.post(
             "/services", json=service_data[5], headers=headers_auth_user
         )
@@ -900,9 +975,9 @@ async def test_flavor_hub_specific_allowance(client, db_session, monkeypatch):
     assert calls == i
 
     # For jupyterhub "authenticated2" it should fail after one successful start
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors_local
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors_local
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors_local):
         response = client.post(
             "/services", json=service_data[0], headers=headers_auth_user2
         )
@@ -911,9 +986,9 @@ async def test_flavor_hub_specific_allowance(client, db_session, monkeypatch):
     assert mock_args[0].url == "mock_url"
     i += 1
     assert calls == i
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors_local
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors_local
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors_local):
         response = client.post(
             "/services", json=service_data[1], headers=headers_auth_user2
         )
@@ -936,9 +1011,9 @@ async def test_flavor_hub_specific_allowance(client, db_session, monkeypatch):
         "flavor": "typec",
     }
     # typec is not configured in flavors, this should not be allowed
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors_local
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors_local
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors_local):
         response = client.post(
             "/services", json=other_flavor, headers=headers_auth_user2
         )
@@ -979,9 +1054,9 @@ async def test_flavor_auth_exception(client, db_session, monkeypatch):
     }
 
     # Start should work, even if the auth token is not configured correctly
-    with patch.object(
-        JupyterHubOutpost, "get_flavors_from_disk", return_value=simple_flavors
-    ):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user
         )
