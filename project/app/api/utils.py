@@ -86,7 +86,6 @@ async def async_start(
 # 3. Flavors may have a global limit
 # 4. Outpost may have an overall limit for a user
 async def validate_flavor(service, jupyterhub_name, request, db):
-    x = spawner.utils.get_flavors_from_disk()
     if not spawner.utils.get_flavors_from_disk():
         # Flavor not defined, accept everything
         return
