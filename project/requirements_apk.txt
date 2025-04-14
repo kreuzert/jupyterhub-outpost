@@ -8,4 +8,5 @@ openssl-dev
 openssh
 openssh-server
 pcre-dev
+postgresql-client
 uuidgen
