@@ -17,7 +17,7 @@ if [ "$SQL_TYPE" == "postgresql" ]; then
     done
     echo "$(date) PostgreSQL started"
 
-    PSQL_CMD="psql -h $SQL_HOST -U $SQL_USER -d $SQL_DATABASE -tAc"
+    PSQL_CMD="PGPASSWORD=${SQL_PASSWORD} psql -h $SQL_HOST -U $SQL_USER -d $SQL_DATABASE -tAc"
 
     CHECK_COLUMN_EXISTS="$PSQL_CMD \"
         SELECT 1 FROM information_schema.columns 
