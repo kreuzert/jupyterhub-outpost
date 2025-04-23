@@ -76,4 +76,7 @@ class Service(BaseModel):
         kwargs["jupyterhub_user_id"] = int(
             body.get("env", {}).get("JUPYTERHUB_USER_ID", "0")
         )
+        flavor = body.get("flavor", body.get("user_options", {}).get("flavor", None))
+        if flavor:
+            kwargs["flavor"] = flavor
         super().__init__(*args, **kwargs)
