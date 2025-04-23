@@ -73,9 +73,6 @@ async def check_running_services():
                 all_services = get_services_all(db=db)
                 for service in all_services:
                     if service["jupyterhub"] in running_services_in_jhub.keys():
-                        log.debug(
-                            f"PeriodicCheck - Servers running at {service['jupyterhub']}: {len(running_services_in_jhub[service['jupyterhub']])}"
-                        )
                         # Only check services which are running at least 30 minutes
                         if (
                             f"{service['jupyterhub_userid']}_{service['name']}_{service['start_id']}"

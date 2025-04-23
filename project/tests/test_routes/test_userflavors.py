@@ -347,3 +347,47 @@ def test_authorization_users_negate_forbidden(client):
         )
     assert response2.status_code == 200, response2.json()
     assert response2.json() == {}, response2.json()
+
+
+@pytest.mark.parametrize("spawner_config", [simple_authorization])
+def test_authorization_users_negate_forbidden_fnmatch_translate(client):
+    flavors = copy.deepcopy(simple_flavors)
+    flavors["flavors"]["minimal"] = {
+        "max": 2,
+        "weight": 15,
+        "display_name": "1GB RAM, 1VCPUs, 1 hours",
+        "description": "JupyterLab will run for max 1 hours with 1GB RAM and 1VCPUs.",
+        "runtime": {"hours": 1},
+    }
+    flavors["users"] = {
+        "negateGroup": {
+            "negate_authentication": True,
+            "authentication": {"username": "*mycomp.org"},
+            "flavors": ["minimal"],
+            "forbidden": True,
+        }
+    }
+
+    # users with username ending with mycomp.org will get the flavors typea and typeb.
+    # All other users will get nothing
+    with patch("spawner.outpost.get_flavors_from_disk", return_value=flavors), patch(
+        "spawner.utils.get_flavors_from_disk", return_value=flavors
+    ):
+        response = client.post(
+            "/userflavors",
+            json={"username": "user1@mycomp.org"},
+            headers=headers_auth_user,
+        )
+    assert response.status_code == 200, response.json()
+    assert list(response.json().keys()) == ["typea", "typeb"], response.json()
+
+    with patch("spawner.outpost.get_flavors_from_disk", return_value=flavors), patch(
+        "spawner.utils.get_flavors_from_disk", return_value=flavors
+    ):
+        response2 = client.post(
+            "/userflavors",
+            json={"username": "user1@other.org"},
+            headers=headers_auth_user2,
+        )
+    assert response2.status_code == 200, response2.json()
+    assert response2.json() == {}, response2.json()

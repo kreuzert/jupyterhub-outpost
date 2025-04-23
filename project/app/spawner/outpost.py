@@ -1,5 +1,6 @@
 import asyncio
 import copy
+import fnmatch
 import inspect
 import json
 import logging
@@ -256,15 +257,25 @@ class JupyterHubOutpost(Application):
                         jupyterhub_sets.append((key, value.get("weight", 0)))
                         break
                 except re.error:
-                    self.log.trace(
-                        f"{config_jupyterhub_name} is not a valid regex. Check if strings are equal"
-                    )
-                    if jupyterhub_name == config_jupyterhub_name:
+                    try:
+                        if re.fullmatch(
+                            fnmatch.translate(config_jupyterhub_name), jupyterhub_name
+                        ):
+                            self.log.trace(
+                                f"{jupyterhub_name} matches {config_jupyterhub_name} - Add {key} to possible hub sets"
+                            )
+                            jupyterhub_sets.append((key, value.get("weight", 0)))
+                            break
+                    except:
                         self.log.trace(
-                            f"{jupyterhub_name} == {config_jupyterhub_name} - Add {key} to possible hub sets"
+                            f"{config_jupyterhub_name} is not a valid regex. Check if strings are equal"
                         )
-                        jupyterhub_sets.append((key, value.get("weight", 0)))
-                        break
+                        if jupyterhub_name == config_jupyterhub_name:
+                            self.log.trace(
+                                f"{jupyterhub_name} == {config_jupyterhub_name} - Add {key} to possible hub sets"
+                            )
+                            jupyterhub_sets.append((key, value.get("weight", 0)))
+                            break
             else:
                 self.log.warning(
                     f"Flavor hubs.{key}.jupyterhub_name is type {type(config_jupyterhub_name)}. Only list and str (regex or plain comparison) are supported."
@@ -361,6 +372,32 @@ class JupyterHubOutpost(Application):
             flavors_update_token = self.flavors_update_token
         return flavors_update_token
 
+    def matches_pattern(self, pattern, key, value):
+        try:
+            if re.fullmatch(pattern, value):
+                self.log.trace(
+                    f"{value} matches regex {pattern} - Add {key} to possible user sets"
+                )
+                return True
+        except re.error:
+            pass
+
+        try:
+            glob_pattern = fnmatch.translate(pattern)
+            if re.fullmatch(glob_pattern, value):
+                self.log.trace(
+                    f"{value} matches glob {pattern} - Add {key} to possible user sets"
+                )
+                return True
+        except re.error:
+            pass
+
+        if value == pattern:
+            self.log.trace(f"{value} == {pattern} - Add {key} to possible user sets")
+            return True
+
+        return False
+
     async def flavors_per_user(self, jupyterhub_name, authentication):
         hub_flavors = await self.get_flavors(jupyterhub_name)
         if not authentication:
@@ -404,23 +441,10 @@ class JupyterHubOutpost(Application):
                                     f"Test if any user value in {user_auth_key} ({user_auth_values}) matches the regex pattern {config_auth_value}"
                                 )
                                 for user_auth_value in user_auth_values:
-                                    try:
-                                        if re.fullmatch(
-                                            config_auth_value, user_auth_value
-                                        ):
-                                            self.log.trace(
-                                                f"{user_auth_value} matches {config_auth_value} - Add {key} to possible user sets"
-                                            )
-                                            matched = True
-                                    except re.error:
-                                        self.log.trace(
-                                            f"{config_auth_value} is not a valid regex. Check if strings are equal"
-                                        )
-                                        if user_auth_value == config_auth_value:
-                                            self.log.trace(
-                                                f"{user_auth_value} == {config_auth_value} - Add {key} to possible user sets"
-                                            )
-                                            matched = True
+                                    if self.matches_pattern(
+                                        config_auth_value, key, user_auth_value
+                                    ):
+                                        matched = True
                             elif type(config_auth_value) == list:
                                 self.log.trace(
                                     f"Test if any user value in {user_auth_key} ({user_auth_values}) is in list {config_auth_value}"
