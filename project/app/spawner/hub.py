@@ -118,7 +118,10 @@ class OutpostSpawner:
 
         for k, v in config.items():
             if hasattr(self, k):
-                setattr(self, k, v)
+                try:
+                    setattr(self, k, v)
+                except:
+                    pass
         super().__init__()
 
     def get_env(self):
