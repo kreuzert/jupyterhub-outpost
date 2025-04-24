@@ -58,6 +58,7 @@ def get_service(
             f"Service {service_name} ({start_id}) for {jupyterhub_name} does not exist"
         )
         raise HTTPException(status_code=404, detail="Item not found")
+    db.refresh(service)
     return service
 
 
@@ -73,21 +74,21 @@ def get_services_all(jupyterhub_name=None, db=None) -> service_schema.Service:
         )
     else:
         services = db.query(service_model.Service).all()
-    service_list = [
-        {
-            "name": x.name,
-            "start_id": x.start_id,
-            "start_date": x.start_date,
-            "end_date": x.end_date,
-            "jupyterhub": x.jupyterhub_username,
-            "jupyterhub_userid": decrypt(x.body)
-            .get("env", {})
-            .get("JUPYTERHUB_USER_ID", "0"),
-            "last_update": x.last_update,
-            "state_stored": x.state_stored,
-            "start_pending": x.start_pending,
-            "stop_pending": x.stop_pending,
-        }
-        for x in services
-    ]
+    service_list = []
+    for service in services:
+        db.refresh(service)
+        service_list.append(
+            {
+                "name": service.name,
+                "start_id": service.start_id,
+                "start_date": service.start_date,
+                "end_date": service.end_date,
+                "jupyterhub": service.jupyterhub_username,
+                "jupyterhub_userid": service.jupyterhub_user_id,
+                "last_update": service.last_update,
+                "state_stored": service.state_stored,
+                "start_pending": service.start_pending,
+                "stop_pending": service.stop_pending,
+            }
+        )
     return service_list

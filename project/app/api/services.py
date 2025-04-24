@@ -131,13 +131,16 @@ async def delete_service(
                     log.debug(
                         f"{jupyterhub_name}-{service_name} - State not stored yet"
                     )
-                    raise Exception("State not stored yet")
+                    await asyncio.sleep(1)
+                    continue
                 log.debug(
                     f"{jupyterhub_name}-{service_name} - Load state: {decrypt(service.state)}"
                 )
                 state = decrypt(service.state)
             except:
-                log.debug(f"{jupyterhub_name}-{service_name} - Could not load service")
+                log.exception(
+                    f"{jupyterhub_name}-{service_name} - Could not load service"
+                )
                 await asyncio.sleep(1)
             else:
                 log.info(
