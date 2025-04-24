@@ -832,6 +832,7 @@ class JupyterHubOutpost(Application):
                 service.state = encrypt(self.get_state())
                 service.state_stored = True
                 service.start_response = encrypt({"service": ret})
+                db.add(service)
                 db.commit()
                 return ret
 
@@ -860,6 +861,7 @@ class JupyterHubOutpost(Application):
                     ret = await ret
                 if service:
                     service.last_update = datetime.now(timezone.utc)
+                    db.add(service)
                     db.commit()
                 return ret
 
