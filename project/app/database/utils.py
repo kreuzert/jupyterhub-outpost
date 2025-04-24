@@ -84,7 +84,7 @@ def get_services_all(jupyterhub_name=None, db=None) -> service_schema.Service:
                 "start_date": service.start_date,
                 "end_date": service.end_date,
                 "jupyterhub": service.jupyterhub_username,
-                "jupyterhub_userid": service.jupyterhub_user_id,
+                "jupyterhub_userid": str(service.jupyterhub_user_id),
                 "last_update": service.last_update,
                 "state_stored": service.state_stored,
                 "start_pending": service.start_pending,
