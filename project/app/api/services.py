@@ -179,9 +179,7 @@ async def delete_service(
                 reduce_one_flavor_count=service.flavor,
             )
         except:
-            spawner.log.exception(
-                f"{spawner._log_name} - Could not send flavor update to {jupyterhub_name}."
-            )
+            log.exception(f"Could not send flavor update to {jupyterhub_name}.")
 
         task = background_tasks.add_task(
             full_stop_and_remove,
