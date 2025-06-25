@@ -247,6 +247,22 @@ async def recreate_tunnels():
         http_client = AsyncHTTPClient(
             force_instance=True, defaults=dict(validate_cert=False)
         )
+        background_set = set()
+
+        def fetch_in_background(req, service_name):
+            task = asyncio.create_task(_do_fetch(req, service_name))
+            background_set.add(task)
+            task.add_done_callback(background_set.discard)
+
+        async def _do_fetch(req, service_name):
+            try:
+                await http_client.fetch(req)
+                log.info(f"Tunnel restarted for {service_name}")
+            except Exception:
+                log.exception(
+                    f"Could not restart tunnel during startup for {service_name}"
+                )
+
         for service in services:
             try:
                 if callable(wrapper.ssh_recreate_at_start):
@@ -274,11 +290,9 @@ async def recreate_tunnels():
                             method="POST",
                             headers=headers,
                             body=start_response,
-                            request_timeout=5,
                         )
                         try:
-                            await http_client.fetch(req)
-                            log.info(f"Tunnel restarted for {service.name}")
+                            fetch_in_background(req, service.name)
                         except:
                             log.exception(
                                 f"Could not restart tunnel during startup for {service.name}"
