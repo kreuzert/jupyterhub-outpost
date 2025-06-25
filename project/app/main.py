@@ -270,42 +270,56 @@ async def recreate_tunnels():
 
             log.error(f"Failed to restart tunnel for {service_name} after 5 attempts.")
 
-        for service in services:
-            try:
-                if callable(wrapper.ssh_recreate_at_start):
-                    ssh_recreate_at_start = wrapper.ssh_recreate_at_start(
-                        wrapper, service.jupyterhub_username
-                    )
-                    if inspect.isawaitable(ssh_recreate_at_start):
-                        ssh_recreate_at_start = await ssh_recreate_at_start
-                else:
-                    ssh_recreate_at_start = wrapper.ssh_recreate_at_start
-                if ssh_recreate_at_start:
-                    body = decrypt(service.body)
-                    tunnel_url = body.get("env", {}).get(
-                        "JUPYTERHUB_SETUPTUNNEL_URL", ""
-                    )
-                    api_token = body.get("env", {}).get("JUPYTERHUB_API_TOKEN", "")
-                    start_response = decrypt(service.start_response)
-                    if isinstance(start_response, dict):
-                        start_response = json.dumps(start_response)
+        jupyterhub_usernames = list(
+            {x.jupyterhub_username for x in services if x.jupyterhub_username}
+        )
 
-                    if tunnel_url and api_token:
-                        headers["Authorization"] = f"token {api_token}"
-                        req = HTTPRequest(
-                            url=tunnel_url,
-                            method="POST",
-                            headers=headers,
-                            body=start_response,
+        if callable(wrapper.ssh_recreate_at_start_global):
+            ssh_recreate_at_start_global = wrapper.ssh_recreate_at_start_global(
+                wrapper, jupyterhub_usernames
+            )
+            if inspect.isawaitable(ssh_recreate_at_start_global):
+                ssh_recreate_at_start_global = await ssh_recreate_at_start_global
+        else:
+            ssh_recreate_at_start_global = wrapper.ssh_recreate_at_start_global
+
+        if not ssh_recreate_at_start_global:
+            for service in services:
+                try:
+                    if callable(wrapper.ssh_recreate_at_start):
+                        ssh_recreate_at_start = wrapper.ssh_recreate_at_start(
+                            wrapper, service.jupyterhub_username
                         )
-                        try:
-                            fetch_in_background(req, service.name)
-                        except:
-                            log.exception(
-                                f"Could not restart tunnel during startup for {service.name}"
+                        if inspect.isawaitable(ssh_recreate_at_start):
+                            ssh_recreate_at_start = await ssh_recreate_at_start
+                    else:
+                        ssh_recreate_at_start = wrapper.ssh_recreate_at_start
+                    if ssh_recreate_at_start:
+                        body = decrypt(service.body)
+                        tunnel_url = body.get("env", {}).get(
+                            "JUPYTERHUB_SETUPTUNNEL_URL", ""
+                        )
+                        api_token = body.get("env", {}).get("JUPYTERHUB_API_TOKEN", "")
+                        start_response = decrypt(service.start_response)
+                        if isinstance(start_response, dict):
+                            start_response = json.dumps(start_response)
+
+                        if tunnel_url and api_token:
+                            headers["Authorization"] = f"token {api_token}"
+                            req = HTTPRequest(
+                                url=tunnel_url,
+                                method="POST",
+                                headers=headers,
+                                body=start_response,
                             )
-            except:
-                log.exception(f"Could not restart tunnel for {service.name}")
+                            try:
+                                fetch_in_background(req, service.name)
+                            except:
+                                log.exception(
+                                    f"Could not restart tunnel during startup for {service.name}"
+                                )
+                except:
+                    log.exception(f"Could not restart tunnel for {service.name}")
     finally:
         db.close()
 

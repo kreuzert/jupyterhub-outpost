@@ -967,6 +967,54 @@ class JupyterHubOutpost(Application):
         Instance(logging.Handler), help="Extra log handlers to set on JupyterHub logger"
     ).tag(config=True)
 
+    ssh_recreate_at_start_global = Union(
+        [Callable(), Bool()],
+        default_value=False,
+        help="""
+        Whether ssh tunnels should be recreated at Outpost start or not.
+        If you have outsourced the port forwarding to an extra system, you can
+        set this to false.
+        If this global function returns a "true-ish" return statement,
+        .ssh_recreate_at_start will not be called.
+        
+        This may be a coroutine.
+        
+        Example::  
+
+
+            async def restart_tunnels_global(wrapper, jupyterhub_names):
+                import os
+                import requests
+                ret = False
+
+                for jupyterhub_name in jupyterhub_names:
+                    env_prefix = f"RESTART_{jupyterhub_name.upper()}"
+                    url = os.environ.get(f"{env_prefix}_URL")
+                    token = os.environ.get(f"{env_prefix}_TOKEN")
+
+                    if not url or not token:
+                        wrapper.log.warning(f"Missing restart URL or token for {jupyterhub_name}")
+                        continue
+
+                    try:
+                        wrapper.log.info(f"Restarting tunnels for {jupyterhub_name} via {url}")
+                        response = requests.get(
+                            url,
+                            headers={"Authorization": f"token {token}"},
+                            timeout=10,
+                        )
+                        response.raise_for_status()
+                        ret = True
+                    except requests.exceptions.RequestException as e:
+                        wrapper.log.error(f"Failed to restart tunnels for {jupyterhub_name}: {e}")
+
+                return ret
+
+            c.JupyterHubOutpost.ssh_recreate_at_start_global = restart_tunnels_global
+            # c.JupyterHubOutpost.ssh_recreate_at_start_global = False # default
+        """,
+    ).tag(config=True)
+
     ssh_recreate_at_start = Union(
         [Callable(), Bool()],
         default_value=False,
@@ -978,7 +1026,8 @@ class JupyterHubOutpost(Application):
         This may be a coroutine.
         
         Example::  
-        
+
+
             async def restart_tunnels(wrapper, jupyterhub_credential):
                 if jupyterhub_credential == "local_jupyterhub":
                     return False
