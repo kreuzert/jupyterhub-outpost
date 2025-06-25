@@ -255,13 +255,20 @@ async def recreate_tunnels():
             task.add_done_callback(background_set.discard)
 
         async def _do_fetch(req, service_name):
-            try:
-                await http_client.fetch(req)
-                log.info(f"Tunnel restarted for {service_name}")
-            except Exception:
-                log.exception(
-                    f"Could not restart tunnel during startup for {service_name}"
-                )
+            for attempt in range(5):
+                try:
+                    await http_client.fetch(req)
+                    log.info(
+                        f"Tunnel restarted for {service_name} (attempt {attempt + 1})"
+                    )
+                    return
+                except Exception:
+                    log.exception(
+                        f"Attempt {attempt + 1}/5: Could not restart tunnel during startup for {service_name}"
+                    )
+                    await asyncio.sleep(5)
+
+            log.error(f"Failed to restart tunnel for {service_name} after 5 attempts.")
 
         for service in services:
             try:
