@@ -167,6 +167,16 @@ def sync_check_services(loop):
     loop.run_until_complete(check_running_services())
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    wrapper = get_wrapper()
+    wrapper.init_logging()
+    wrapper.update_logging()
+    await recreate_tunnels()
+    yield
+    await shutdown_event()
+
+
 def create_application() -> FastAPI:
     global background_tasks
     loop = None
@@ -191,7 +201,7 @@ def create_application() -> FastAPI:
         # check_enddates.start()
         check_services = threading.Thread(target=sync_check_services, args=(loop,))
         check_services.start()
-    application = FastAPI()
+    application = FastAPI(lifespan=lifespan)
     application.include_router(services_router)
     application.add_middleware(
         CORSMiddleware,
@@ -268,16 +278,6 @@ async def shutdown_event():
     global background_tasks
     for t in background_tasks:
         t.terminate()
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    wrapper = get_wrapper()
-    wrapper.init_logging()
-    wrapper.update_logging()
-    await recreate_tunnels()
-    yield
-    await shutdown_event()
 
 
 @app.exception_handler(SpawnerException)
