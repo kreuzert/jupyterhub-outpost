@@ -238,6 +238,7 @@ async def recreate_tunnels():
 
     log.info("Recreate ssh tunnels during start up")
     from database import SessionLocal
+    import json
 
     try:
         db = SessionLocal()
@@ -263,6 +264,8 @@ async def recreate_tunnels():
                     )
                     api_token = body.get("env", {}).get("JUPYTERHUB_API_TOKEN", "")
                     start_response = decrypt(service.start_response)
+                    if isinstance(start_response, dict):
+                        start_response = json.dumps(start_response)
 
                     if tunnel_url and api_token:
                         headers["Authorization"] = f"token {api_token}"
@@ -271,6 +274,7 @@ async def recreate_tunnels():
                             method="POST",
                             headers=headers,
                             body=start_response,
+                            request_timeout=5,
                         )
                         try:
                             await http_client.fetch(req)
