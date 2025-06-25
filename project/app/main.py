@@ -178,11 +178,12 @@ async def lifespan(app: FastAPI):
     if not os.path.exists(lockfile):
         with open(lockfile, "w") as f:
             f.write(str(pid))
-        print(f"Running lifespan init in first worker only ({pid})")
+        print(f"Running lifespan init in first worker only ({pid}) ...")
         # Your init logic here
         await recreate_tunnels()
+        print(f"Running lifespan init in first worker only ({pid}) ... done")
     else:
-        print("Skipping lifespan init in this worker ({pid})")
+        print(f"Skipping lifespan init in this worker ({pid})")
     yield
     await shutdown_event()
 
