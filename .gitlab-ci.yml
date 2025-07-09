@@ -52,15 +52,13 @@ build-devel:
 build-tag-docker:
   stage: build
   image: moby/buildkit:latest
-  variables:
-    CACHE_IMAGE: "$CI_REGISTRY_IMAGE:buildcachedevel"
   script:
     - mkdir -p ~/.docker
     - echo "{\"auths\":{\"${CI_REGISTRY_DOCKERHUB}\":{\"username\":\"${CI_REGISTRY_DOCKERHUB_USER}\",\"password\":\"${CI_REGISTRY_DOCKERHUB_PASSWORD}\"}}}" > ~/.docker/config.json
     - buildkitd &
     - sleep 5
     - sed -i -e "s/<VERSION>/${CI_COMMIT_TAG} (${CI_COMMIT_SHORT_SHA})/g" ${CI_PROJECT_DIR}/project/app/spawner/outpost.py
-    - buildctl build --frontend dockerfile.v0 --export-cache type=registry,ref=$CACHE_IMAGE,mode=max --import-cache type=registry,ref=$CACHE_IMAGE --local context=${CI_PROJECT_DIR} --local dockerfile=${CI_PROJECT_DIR}/project/ --output type=image,name=${CI_REGISTRY_DOCKERHUB_BASEIMAGE}/${CI_PROJECT_NAME}:${CI_COMMIT_TAG},push=true --output type=image,name=${CI_REGISTRY_DOCKERHUB_BASEIMAGE}/${CI_PROJECT_NAME}:latest,push=true
+    - buildctl build --frontend dockerfile.v0 --local context=${CI_PROJECT_DIR} --local dockerfile=${CI_PROJECT_DIR}/project/ --output type=image,name=${CI_REGISTRY_DOCKERHUB_BASEIMAGE}/${CI_PROJECT_NAME}:${CI_COMMIT_TAG},push=true --output type=image,name=${CI_REGISTRY_DOCKERHUB_BASEIMAGE}/${CI_PROJECT_NAME}:latest,push=true
   rules:
     - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
 
