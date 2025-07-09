@@ -430,7 +430,7 @@ class JupyterHubOutpost(Application):
                     "authentication", {}
                 ).items():
                     self.log.trace(
-                        f"Test if users.{key}.authentication.{config_auth_key} matches with user authentication"
+                        f"Test if users.{key}.authentication.{config_auth_key} matches with user authentication ..."
                     )
                     for user_auth_key, user_auth_values in authentication.items():
                         if config_auth_key == user_auth_key:
@@ -459,6 +459,9 @@ class JupyterHubOutpost(Application):
                                 self.log.warning(
                                     f"Flavor users.{key}.authentication.{config_auth_key} is type {type(config_auth_value)}. Only list and str (regex or plain comparison) are supported."
                                 )
+                    self.log.trace(
+                        f"Test if users.{key}.authentication.{config_auth_key} matches with user authentication ...: {matched}"
+                    )
                 if (not negate_authentication) and matched:
                     user_sets.append([key, value.get("weight", 0)])
                 elif negate_authentication and (not matched):
