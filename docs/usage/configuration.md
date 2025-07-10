@@ -242,6 +242,20 @@ users:
 > This gives you flexibility in how users are grouped and access is granted.
 
 
+#### Manipulate incoming user authentication dict
+  
+Before checking if the given user authentication dict matches your configuration, you might want to manipulate it. E.g. you don't care about lower- / uppercase differences in the users `name` field:  
+  
+```python
+# In the `outpostConfig` key of your helm values.yaml file or your outpost_config.py file:
+async def lowercase_name(authentication):
+    if "name" in authentication.keys():
+        authentication["name"] = authentication["name"].lower()
+    return authentication
+
+c.JupyterHubOutpost.update_user_authentication = lowercase_name
+```
+
 ---
 
 ### Per-Hub Flavor Control
