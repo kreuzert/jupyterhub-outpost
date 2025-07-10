@@ -1,6 +1,6 @@
 # Changelog
 ## 2.0.6 (2025-07-10)
-- Added c.JupyterHubOutpost.update_user_authentication . ALlows for manipulating user authentication input before matching against configuration.
+- Added c.JupyterHubOutpost.update_user_authentication . Allows for manipulating user authentication input before matching against configuration.
 
 ## 2.0.5 (2025-07-09)
 - Minor logging improvements: Log result of user_flavor checks in trace level
