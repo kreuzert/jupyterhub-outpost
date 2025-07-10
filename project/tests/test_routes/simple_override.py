@@ -13,3 +13,12 @@ async def allow_override(jupyterhub_name, misc):
 
 
 c.JupyterHubOutpost.allow_override = allow_override
+
+
+async def lowercase_name(authentication):
+    if "username" in authentication.keys():
+        authentication["username"] = authentication["username"].lower()
+    return authentication
+
+
+c.JupyterHubOutpost.update_user_authentication = lowercase_name

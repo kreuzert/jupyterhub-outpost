@@ -398,6 +398,39 @@ class JupyterHubOutpost(Application):
 
         return False
 
+    update_user_authentication = Any(
+        default_value=None,
+        allow_none=True,
+        config=True,
+        help="""
+        Hook to add a function to manipulate user authentication info before 
+        matching it against the configured flavors.users information.
+        Must return a dict
+        
+        May be a coroutine.
+        
+        Example::
+        
+            async def lowercase_name(authentication):
+                if "name" in authentication.keys():
+                    authentication["name"] = authentication["name"].lower()
+                return authentication
+            
+            c.JupyterHubOutpost.update_user_authentication = lowercase_name
+        """,
+    )
+
+    async def run_update_user_authentication(self, authentication):
+        if self.update_user_authentication:
+            authentication_new = self.update_user_authentication(
+                copy.deepcopy(authentication)
+            )
+            if inspect.isawaitable(authentication_new):
+                authentication_new = await authentication_new
+            return authentication_new
+        else:
+            return authentication
+
     async def flavors_per_user(self, jupyterhub_name, authentication):
         hub_flavors = await self.get_flavors(jupyterhub_name)
         if not authentication:
@@ -424,7 +457,7 @@ class JupyterHubOutpost(Application):
                 matched = False
                 if negate_authentication:
                     self.log.info(
-                        f"Negate logic for matching user to users.{key}.authentication. So users who don't match the authentcation will use this user set"
+                        f"Negate logic for matching user to users.{key}.authentication. So users who don't match the authentication will use this user set"
                     )
                 for config_auth_key, config_auth_value in value.get(
                     "authentication", {}
@@ -606,8 +639,11 @@ class JupyterHubOutpost(Application):
         add_one_flavor_count=None,
         reduce_one_flavor_count=None,
     ):
+        user_authentication_used = await self.run_update_user_authentication(
+            user_authentication
+        )
         default_flavors = await self.flavors_per_user(
-            jupyterhub_name, user_authentication
+            jupyterhub_name, user_authentication_used
         )
         configured_flavors = copy.deepcopy(default_flavors)
 

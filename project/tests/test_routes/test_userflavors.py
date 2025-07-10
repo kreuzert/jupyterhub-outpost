@@ -18,7 +18,8 @@ headers_auth_wrong_pw = {"Authorization": f"Basic {auth_user_wrong_pw}"}
 
 auth_state_required = "./tests/test_routes/auth_state_required.py"
 simple_authorization = "./tests/test_routes/simple_authorization.py"
-simple_direct = "./tests/test_routes/simple_direct.py"
+simple_override = "./tests/test_routes/simple_override.py"
+
 
 simple_flavors = {
     "flavors": {
@@ -72,7 +73,7 @@ def test_authorization(client):
     assert response2.json() == {}
 
 
-@pytest.mark.parametrize("spawner_config", [simple_direct])
+@pytest.mark.parametrize("spawner_config", [None])
 def test_authorization_flavor_hub_flavors(client):
     mock_flavor_data = copy.deepcopy(simple_flavors)
     mock_flavor_data["hubs"]["default"]["flavors"] = ["typea"]
@@ -90,7 +91,7 @@ def test_authorization_flavor_hub_flavors(client):
     assert response.json() == expected_user_flavors
 
 
-@pytest.mark.parametrize("spawner_config", [simple_direct])
+@pytest.mark.parametrize("spawner_config", [None])
 def test_authorization_flavor_hub_flavorsoverride(client):
     mock_flavor_data = copy.deepcopy(simple_flavors)
     mock_flavor_data["hubs"]["default"]["flavors"] = ["typea"]
@@ -113,7 +114,7 @@ def test_authorization_flavor_hub_flavorsoverride(client):
     assert response.json() == expected_user_flavors
 
 
-@pytest.mark.parametrize("spawner_config", [simple_direct])
+@pytest.mark.parametrize("spawner_config", [None])
 def test_authorization_flavor_user_flavorsoverride(client):
     mock_flavor_data = copy.deepcopy(simple_flavors)
     mock_flavor_data["hubs"]["default"]["flavors"] = ["typea"]
@@ -147,7 +148,41 @@ def test_authorization_flavor_user_flavorsoverride(client):
     assert response.json() == expected_user_flavors
 
 
-@pytest.mark.parametrize("spawner_config", [simple_direct])
+@pytest.mark.parametrize("spawner_config", [simple_override])
+def test_authorization_flavor_user_flavorsoverride_manipulate_function(client):
+    mock_flavor_data = copy.deepcopy(simple_flavors)
+    mock_flavor_data["hubs"]["default"]["flavors"] = ["typea"]
+    mock_flavor_data["hubs"]["default"]["flavorsOverride"] = {
+        "typea": {"runtime": {"hours": 1}, "max": 18}
+    }
+    mock_flavor_data["users"] = {
+        "key1": {
+            "authentication": {"username": "user1"},
+            "flavors": ["typea", "typeb"],
+            "flavorsOverride": {"typea": {"runtime": {"hours": 2}}},
+        }
+    }
+    expected_user_flavors = {
+        "typea": mock_flavor_data["flavors"]["typea"],
+        "typeb": mock_flavor_data["flavors"]["typeb"],
+    }
+    expected_user_flavors["typea"]["current"] = 0
+    expected_user_flavors["typea"]["max"] = 18
+    expected_user_flavors["typea"]["runtime"] = {"hours": 2}
+    expected_user_flavors["typeb"]["current"] = 0
+
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=mock_flavor_data
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=mock_flavor_data):
+        response = client.post(
+            "/userflavors", json={"username": "USER1"}, headers=headers_auth_user
+        )
+
+    assert response.status_code == 200
+    assert response.json() == expected_user_flavors
+
+
+@pytest.mark.parametrize("spawner_config", [None])
 def test_authorization_flavor_user_flavorsoverride_weight(client):
     mock_flavor_data = copy.deepcopy(simple_flavors)
     mock_flavor_data["hubs"]["default"]["flavors"] = ["typea"]
@@ -187,7 +222,7 @@ def test_authorization_flavor_user_flavorsoverride_weight(client):
     assert response.json() == expected_user_flavors
 
 
-@pytest.mark.parametrize("spawner_config", [simple_direct])
+@pytest.mark.parametrize("spawner_config", [None])
 def test_authorization_flavor_user_flavorsoverride_regex(client):
     mock_flavor_data = copy.deepcopy(simple_flavors)
     mock_flavor_data["hubs"]["default"]["flavors"] = ["typea"]
@@ -221,7 +256,7 @@ def test_authorization_flavor_user_flavorsoverride_regex(client):
     assert response.json() == expected_user_flavors
 
 
-@pytest.mark.parametrize("spawner_config", [simple_direct])
+@pytest.mark.parametrize("spawner_config", [None])
 def test_authorization_flavor_user_flavorsoverride_regex_nomatch(client):
     mock_flavor_data = copy.deepcopy(simple_flavors)
     mock_flavor_data["hubs"]["default"]["flavors"] = ["typea"]
