@@ -1,10 +1,11 @@
 bash
 ca-certificates
 curl
-netcat
+netcat-traditional
 python3
 python3-pip
 python3-django
+python3-venv
 libc6
 libstdc++6
 openssh-server

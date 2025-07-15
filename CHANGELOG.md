@@ -1,4 +1,7 @@
 # Changelog
+## 2.0.7 (2025-07-15)
+- Upgrade base image + python packages
+
 ## 2.0.6 (2025-07-10)
 - Added c.JupyterHubOutpost.update_user_authentication . Allows for manipulating user authentication input before matching against configuration.
 

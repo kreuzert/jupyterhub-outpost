@@ -1,23 +1,23 @@
-FROM ubuntu:jammy-20230624
+FROM ubuntu:noble-20250619
 # FROM ubuntu:oracular-20241009
 
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 ENV USERNAME=jhuboutpost
 ENV PYTHONUNBUFFERED=1
 ENV HOME=/home/${USERNAME}
 ENV APP_HOME=/home/${USERNAME}/app
 
-# create app user
-RUN adduser --uid 1000 --gecos "" --disabled-password ${USERNAME}
-
-RUN mkdir -p ${APP_HOME} && mkdir -p ${HOME}/.ssh
-WORKDIR ${APP_HOME}
-
 RUN apt update && \
     apt -y upgrade && \
+    apt -y install adduser && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
+
+# create app user
+RUN adduser --uid 1001 --disabled-password ${USERNAME}
+RUN mkdir -p ${APP_HOME} && mkdir -p ${HOME}/.ssh
+WORKDIR ${APP_HOME}
 
 # Install requirements
 COPY ./devel/requirements_apt.txt /tmp/requirements_apt.txt
@@ -27,13 +27,15 @@ RUN apt update && \
     cat /tmp/requirements_apt.txt | xargs apt install -yq && \
     apt clean && \
     rm -rf /var/lib/apt/lists/* && \
-    pip install -r /tmp/requirements_pip.txt && \
+    python3 -m venv ${HOME}/venv && \
+    ${HOME}/venv/bin/python3 -m ensurepip && \
+    ${HOME}/venv/bin/pip3 install -r /tmp/requirements_pip.txt && \
     chown -R ${USERNAME}:users ${HOME} && \
     rm /tmp/requirements_pip.txt && \
     rm /tmp/requirements_apt.txt && \
     sed -i -r \
     -e "s/^#PasswordAuthentication yes/PasswordAuthentication no/g" \
-    -e "s/^AllowTcpForwarding no/AllowTcpForwarding yes/g" \
+    -e "s/^#AllowTcpForwarding yes/AllowTcpForwarding yes/g" \
     -e "s/^#Port 22/Port 2222/g" \
     /etc/ssh/sshd_config && \
     mkdir -p /run/sshd && \
