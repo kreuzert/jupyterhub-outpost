@@ -14,7 +14,11 @@ from datetime import timezone
 from pathlib import Path
 
 import yaml
-from async_generator import aclosing
+
+if sys.version_info >= (3, 10):
+    from contextlib import aclosing
+else:
+    from async_generator import aclosing
 from database import models as service_model
 from database.schemas import decrypt
 from database.schemas import encrypt
