@@ -1,4 +1,5 @@
 import base64
+import os
 from typing import Any
 from typing import Generator
 
@@ -10,8 +11,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 
-def start_application():
-    app = FastAPI()
+def start_application(root_path=""):
+    app = FastAPI(root_path=root_path)
     app.include_router(service_router)
     return app
 
@@ -31,8 +32,56 @@ def app(spawner_config, monkeypatch) -> Generator[FastAPI, Any, None]:
     """
     Create a fresh database on each test case.
     """
-    monkeypatch.setenv("OUTPOST_CONFIG_FILE", spawner_config)
+    if spawner_config is not None:
+        monkeypatch.setenv("OUTPOST_CONFIG_FILE", spawner_config)
     _app = start_application()
+
+    from exceptions import SpawnerException
+    from fastapi import Request
+    from fastapi.responses import JSONResponse
+
+    @_app.exception_handler(SpawnerException)
+    async def spawner_exception_handler(
+        request: Request, exc: SpawnerException
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=419,
+            content={
+                "module": exc.module,
+                "class": exc.class_name,
+                "traceback": exc.traceback,
+                "args": exc.args,
+                "kwargs": exc.kwargs,
+            },
+        )
+
+    import spawner
+    from spawner import hub
+    from uuid import uuid4
+
+    _wrapper = spawner.JupyterHubOutpost()
+
+    def get_wrapper():
+        return _wrapper
+
+    monkeypatch.setattr(spawner, "get_wrapper", get_wrapper)
+    monkeypatch.setattr(spawner, "_wrapper", _wrapper)
+    # monkeypatch.setattr(hub, "certs_dir", f"/tmp/jupyterhub-certs/{uuid4().hex}")
+    yield _app
+    from spawner import remove_wrapper
+
+    remove_wrapper()
+
+
+@pytest.fixture(scope="function")
+def app_prefix(spawner_config, monkeypatch) -> Generator[FastAPI, Any, None]:
+    """
+    Create a fresh database on each test case.
+    """
+    if spawner_config is not None:
+        monkeypatch.setenv("OUTPOST_CONFIG_FILE", spawner_config)
+
+    _app = start_application("/prefix")
 
     from exceptions import SpawnerException
     from fastapi import Request
@@ -140,4 +189,26 @@ def client(
 
     app.dependency_overrides[get_db] = _get_test_db
     with TestClient(app) as client:
+        yield client
+
+
+@pytest.fixture(scope="function")
+def client_prefix(
+    app_prefix: FastAPI, db_session: SessionTesting
+) -> Generator[TestClient, Any, None]:
+    """
+    Create a new FastAPI TestClient that uses the `db_session` fixture to override
+    the `get_db` dependency that is injected into routes.
+    """
+
+    def _get_test_db():
+        try:
+            yield db_session
+        finally:
+            pass
+
+    from database.utils import get_db
+
+    app_prefix.dependency_overrides[get_db] = _get_test_db
+    with TestClient(app_prefix) as client:
         yield client

@@ -344,6 +344,16 @@ def test_list(client):
 
 
 @pytest.mark.parametrize("spawner_config", [simple])
+def test_list_prefix(client_prefix):
+    with patch(
+        "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
+    ), patch("spawner.utils.get_flavors_from_disk", return_value=simple_flavors):
+        response = client_prefix.get("/prefix/services/", headers=headers_auth_user)
+    assert response.status_code == 200, response.text
+    assert response.json() == []
+
+
+@pytest.mark.parametrize("spawner_config", [simple])
 def test_404_get(client):
     with patch(
         "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors

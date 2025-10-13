@@ -14,7 +14,11 @@ def get_wrapper() -> JupyterHubOutpost:
 
 def remove_wrapper() -> None:
     global _wrapper
-    del _wrapper
+    try:
+        del _wrapper
+    except NameError:
+        # Does not exist
+        pass
 
 
 async def get_spawner(

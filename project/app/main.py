@@ -222,7 +222,10 @@ def create_application() -> FastAPI:
         allow_headers=["*"],
         allow_credentials=True,
     )
-    log.info("Start JupyterHubOutpost")
+    if root_path:
+        log.info(f"Start JupyterHubOutpost with prefix {root_path}")
+    else:
+        log.info("Start JupyterHubOutpost")
     return application
 
 
