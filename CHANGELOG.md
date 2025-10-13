@@ -1,4 +1,7 @@
 # Changelog
+## 2.0.8 (2025-10-13)
+- Support ingresses with prefixes via `OUTPOST_BASE_PATH` env variable.
+
 ## 2.0.7 (2025-07-15)
 - Upgrade base image + python packages
 
