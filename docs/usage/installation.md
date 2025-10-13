@@ -196,4 +196,11 @@ This ensures FastAPI internally serves all routes under that prefix (e.g., `/out
 
 If the environment variable is not set, the Outpost will assume it is served at the domain root (`/services`).
 
+The **easiest** way to do this is setting `extraEnvVars` in your **Helm Chart installation**:
+```bash
+extraEnvVars:
+  - name: OUTPOST_BASE_PATH
+    value: "/outpost"
+```
+
 > **Tip:** You can also achieve the same effect by configuring your ingress to **strip the prefix** using a rewrite rule, but the environment variable approach is usually simpler and avoids custom path rewrites.
