@@ -212,7 +212,8 @@ def create_application() -> FastAPI:
         # check_enddates.start()
         check_services = threading.Thread(target=sync_check_services, args=(loop,))
         check_services.start()
-    application = FastAPI(lifespan=lifespan)
+    root_path = os.environ.get("OUTPOST_BASE_PATH", "")
+    application = FastAPI(lifespan=lifespan, root_path=root_path)
     application.include_router(services_router)
     application.add_middleware(
         CORSMiddleware,
