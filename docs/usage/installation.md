@@ -181,3 +181,19 @@ EOF
 
 JupyterHub will now be able to reach the JupyterHub Outpost API at `https://myremoteoutpost.com/services` and the ssh daemon for port-forwarding at `${FLOATING_IP_SSH}` on port 22.
 You have to send each connected JupyterHub its credentials (defined in `outpost-users`), the `servicessh` loadBalancerIP address and the URL of your outpost service.
+
+### Prefixes
+
+If your ingress exposes the Outpost API under a **URL prefix** (for example `https://myremoteoutpost.com/outpost/services`), you need to inform the Outpost backend of this prefix.
+
+Set the following environment variable in your Outpost deployment:
+
+```bash
+OUTPOST_BASE_PATH=/outpost
+```
+
+This ensures FastAPI internally serves all routes under that prefix (e.g., `/outpost/services`, `/outpost/flavors`, etc.).
+
+If the environment variable is not set, the Outpost will assume it is served at the domain root (`/services`).
+
+> **Tip:** You can also achieve the same effect by configuring your ingress to **strip the prefix** using a rewrite rule, but the environment variable approach is usually simpler and avoids custom path rewrites.
