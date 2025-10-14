@@ -1,4 +1,7 @@
 # Changelog
+## 2.0.9 (2025-10-14)
+- BugFix: Update User.auth_state when receiving a Request with auth_state information in it.
+
 ## 2.0.8 (2025-10-13)
 - Support ingresses with prefixes via `OUTPOST_BASE_PATH` env variable.
 
