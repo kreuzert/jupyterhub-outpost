@@ -142,6 +142,10 @@ class JupyterHubOutpost(Application):
                 user_flavor,
             )
             self.spawners[f"{jupyterhub_name}-{service_name}-{start_id}"] = spawner
+        if auth_state:
+            await self.spawners[
+                f"{jupyterhub_name}-{service_name}-{start_id}"
+            ].user.save_auth_state(auth_state)
         return self.spawners[f"{jupyterhub_name}-{service_name}-{start_id}"]
 
     allow_override = Any(
