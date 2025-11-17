@@ -51,7 +51,7 @@ from .hub import certs_dir
 from .hub import OutpostJupyterHub
 from .hub import OutpostSpawner
 from .hub import OutpostUser
-from .utils import get_flavors_from_disk
+from .utils import get_flavors_from_disk, get_credits_from_disk
 
 
 logger_name = os.environ.get("LOGGER_NAME", "JupyterHubOutpost")
@@ -439,6 +439,140 @@ class JupyterHubOutpost(Application):
         else:
             return authentication
 
+    async def credits_per_user(self, jupyterhub_name, authentication):
+        hub_credits = await self.get_credits(jupyterhub_name)
+        if not authentication:
+            return hub_credits
+
+        credit_config = get_credits_from_disk()
+
+        if not credit_config.get("users", {}):
+            self.log.info(
+                f"User specific config not set. Use hub ({jupyterhub_name}) specific credits"
+            )
+            return hub_credits
+
+        user_sets = []
+        # check if the given user is part of any user set
+        self.log.trace("Check for user specific credits ...")
+        self.log.trace(authentication)
+        for key, value in credit_config.get("users", {}).items():
+            self.log.trace(f"Check {key} user configuration")
+            if "hubs" in value.keys() and jupyterhub_name not in value.get("hubs", []):
+                self.log.trace(f"{jupyterhub_name} not in users.{key}.hubs . Skip")
+            else:
+                negate_authentication = value.get("negate_authentication", False)
+                matched = False
+                if negate_authentication:
+                    self.log.info(
+                        f"Negate logic for matching user to users.{key}.authentication. So users who don't match the authentication will use this user set"
+                    )
+                for config_auth_key, config_auth_value in value.get(
+                    "authentication", {}
+                ).items():
+                    self.log.trace(
+                        f"Test if users.{key}.authentication.{config_auth_key} matches with user authentication ..."
+                    )
+                    for user_auth_key, user_auth_values in authentication.items():
+                        if config_auth_key == user_auth_key:
+                            if type(user_auth_values) != list:
+                                user_auth_values = [user_auth_values]
+                            if type(config_auth_value) == str:
+                                self.log.trace(
+                                    f"Test if any user value in {user_auth_key} ({user_auth_values}) matches the regex pattern {config_auth_value}"
+                                )
+                                for user_auth_value in user_auth_values:
+                                    if self.matches_pattern(
+                                        config_auth_value, key, user_auth_value
+                                    ):
+                                        matched = True
+                            elif type(config_auth_value) == list:
+                                self.log.trace(
+                                    f"Test if any user value in {user_auth_key} ({user_auth_values}) is in list {config_auth_value}"
+                                )
+                                for user_auth_value in user_auth_values:
+                                    if user_auth_value in config_auth_value:
+                                        self.log.trace(
+                                            f"{user_auth_value} in {config_auth_value} - Add {key} to possible user sets"
+                                        )
+                                        matched = True
+                            else:
+                                self.log.warning(
+                                    f"credit users.{key}.authentication.{config_auth_key} is type {type(config_auth_value)}. Only list and str (regex or plain comparison) are supported."
+                                )
+                    self.log.trace(
+                        f"Test if users.{key}.authentication.{config_auth_key} matches with user authentication ...: {matched}"
+                    )
+                if (not negate_authentication) and matched:
+                    user_sets.append([key, value.get("weight", 0)])
+                elif negate_authentication and (not matched):
+                    self.log.trace(
+                        f"User does not match users.{key}.authentication , but since users.{key}.negatve_authentication is true, the user will be added to the user subset"
+                    )
+                    user_sets.append([key, value.get("weight", 0)])
+        self.log.trace("Check for user specific credits ... done")
+        if len(user_sets) == 0:
+            self.log.debug(
+                f"No user specific credit found. Return hub ({jupyterhub_name}) specific credits."
+            )
+            return hub_credits
+
+        user_sets = sorted(user_sets, key=lambda x: x[1])
+        # sorted sorts ascending, we're using weight, so we use the last element
+        # with the biggest weight
+        user_set = user_sets[-1][0]
+        self.log.debug(f"Sorted matched user sets. Use user set {user_set}")
+
+        # When "forbidden" is true, we return an empty dict for this uset_set
+        if credit_config.get("users", {}).get(user_set, {}).get("forbidden", False):
+            self.log.info(
+                f"users.{user_set}.forbidden is True. User's not allowed to use any credit"
+            )
+            return {}
+
+        # Copy default credits for this hub
+        all_credits = await self.get_credits(None)
+        user_credits = {}
+        user_credit_keys_exists = (
+            "credits" in credit_config.get("users", {}).get(user_set, {}).keys()
+        )
+        user_credit_keys = (
+            credit_config.get("users", {}).get(user_set, {}).get("credits", [])
+        )
+        self.log.trace(
+            f"users.{user_set}.forbidden is False. Use users.{user_set}.credits ({user_credit_keys}) for this user"
+        )
+
+        for creditName, creditValue in all_credits.items():
+            if (not user_credit_keys_exists) or creditName in user_credit_keys:
+                user_credits[creditName] = creditValue
+
+        self.log.trace(
+            f"Check users.{user_set}.creditsOverride - This allows you to override any config configured globally in credits._credit_"
+        )
+        for creditName, overrideDict in (
+            credit_config.get("users", {})
+            .get(user_set, {})
+            .get("creditsOverride", {})
+            .items()
+        ):
+            if creditName not in user_credits.keys():
+                self.log.warning(
+                    f"Do not override {creditName} for user set {user_set}. credit not part of credits list."
+                )
+                continue
+            for overrideKey, overrideValue in overrideDict.items():
+                self.log.trace(
+                    f"Override {creditName}.{overrideKey} to user specific values"
+                )
+                user_credits[creditName][overrideKey] = overrideValue
+
+        self.log.trace(
+            "User credits function ended. Return the following user specific credits"
+        )
+        self.log.trace(user_credits)
+        return user_credits
+
     async def flavors_per_user(self, jupyterhub_name, authentication):
         hub_flavors = await self.get_flavors(jupyterhub_name)
         if not authentication:
@@ -638,6 +772,19 @@ class JupyterHubOutpost(Application):
             .count()
         )
         return user_total_count
+
+    async def _outpostspawner_get_credit_values(
+        self, db, jupyterhub_name, user_authentication={}
+    ):
+        user_authentication_used = await self.run_update_user_authentication(
+            user_authentication
+        )
+        default_credits = await self.credits_per_user(
+            jupyterhub_name, user_authentication_used
+        )
+        configured_credits = copy.deepcopy(default_credits)
+
+        return configured_credits
 
     async def _outpostspawner_get_flavor_values(
         self,
