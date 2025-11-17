@@ -56,7 +56,7 @@ else
     kubectl -n ${NAMESPACE} cp ${DIR}/settings.json ${POD_NAME}:/home/jhuboutpost/app/.vscode/.
     kubectl -n ${NAMESPACE} cp ${DIR}/launch.json ${POD_NAME}:/home/jhuboutpost/app/.vscode/.
 
-    kubectl -n ${NAMESPACE} exec -it ${POD_NAME} -- chown jhuboutpost:users /home/jhuboutpost/.ssh/authorized_keys
+    kubectl -n ${NAMESPACE} exec -it ${POD_NAME} -- chown 1000:1000 /home/jhuboutpost/.ssh/authorized_keys
 
     echo "kubectl -n ${NAMESPACE} port-forward pod/${POD_NAME} 2223:2222"
 fi

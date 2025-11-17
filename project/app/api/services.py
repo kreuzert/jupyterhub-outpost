@@ -41,6 +41,33 @@ log = logging.getLogger(logger_name)
 
 # background_tasks = set()
 
+@router.get("/credits/")
+@catch_exception
+async def list_flavors(
+    jupyterhub_name: Annotated[HTTPBasicCredentials, Depends(verify_user)],
+    db: Session = Depends(get_db),
+) -> dict:
+    log.debug(f"List Credits for {jupyterhub_name}")
+    wrapper = get_wrapper()
+    current_credit_values = await wrapper._outpostspawner_get_credit_values(
+        db, jupyterhub_name
+    )
+    return current_credit_values
+
+
+@router.post("/credits/")
+@catch_exception
+async def credits(
+    jupyterhub_name: Annotated[HTTPBasicCredentials, Depends(verify_user)],
+    request: Request,
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    user_authentication = await request.json()
+    wrapper = get_wrapper()
+    ret = await wrapper._outpostspawner_get_credit_values(
+        db, jupyterhub_name, user_authentication
+    )
+    return JSONResponse(content=ret, status_code=200)
 
 @router.get("/flavors/")
 @catch_exception
