@@ -1,4 +1,7 @@
 # Changelog
+## 2.1.0 (2025-11-17)
+- Added JupyterHub Credit Service support
+
 ## 2.0.9 (2025-10-14)
 - BugFix: Update User.auth_state when receiving a Request with auth_state information in it.
 
