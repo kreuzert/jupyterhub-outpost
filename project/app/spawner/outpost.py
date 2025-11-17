@@ -14,6 +14,7 @@ from datetime import timezone
 from pathlib import Path
 
 import yaml
+
 if sys.version_info >= (3, 10):
     from contextlib import aclosing
 else:
@@ -50,7 +51,7 @@ from .hub import certs_dir
 from .hub import OutpostJupyterHub
 from .hub import OutpostSpawner
 from .hub import OutpostUser
-from .utils import get_credits_from_disk, get_flavors_from_disk
+from .utils import get_flavors_from_disk
 
 
 logger_name = os.environ.get("LOGGER_NAME", "JupyterHubOutpost")
@@ -141,6 +142,10 @@ class JupyterHubOutpost(Application):
                 user_flavor,
             )
             self.spawners[f"{jupyterhub_name}-{service_name}-{start_id}"] = spawner
+        if auth_state:
+            await self.spawners[
+                f"{jupyterhub_name}-{service_name}-{start_id}"
+            ].user.save_auth_state(auth_state)
         return self.spawners[f"{jupyterhub_name}-{service_name}-{start_id}"]
 
     allow_override = Any(
@@ -221,122 +226,6 @@ class JupyterHubOutpost(Application):
         """,
     )
 
-    def get_hub_config(self, config, jupyterhub_name):
-        ret = []
-        for key, value in config.get("hubs", {}).items():
-            config_jupyterhub_name = value.get("jupyterhub_name", [])
-            self.log.trace(f"Check {key} hub configuration")
-            if type(config_jupyterhub_name) == list:
-                self.log.trace(
-                    f"Test if {jupyterhub_name} is in hubs.{key}.jupyterhub_name"
-                )
-                if jupyterhub_name in config_jupyterhub_name:
-                    self.log.trace(
-                        f"{jupyterhub_name} in {config_jupyterhub_name} - Add {key} to possible hub sets"
-                    )
-                    ret.append((key, value.get("weight", 0)))
-                    break
-            elif type(config_jupyterhub_name) == str:
-                self.log.trace(
-                    f"Test if hub value ({jupyterhub_name}) matches the regex pattern {config_jupyterhub_name}"
-                )
-                try:
-                    if re.fullmatch(config_jupyterhub_name, jupyterhub_name):
-                        self.log.trace(
-                            f"{jupyterhub_name} matches {config_jupyterhub_name} - Add {key} to possible hub sets"
-                        )
-                        ret.append((key, value.get("weight", 0)))
-                        break
-                except re.error:
-                    try:
-                        if re.fullmatch(
-                            fnmatch.translate(config_jupyterhub_name), jupyterhub_name
-                        ):
-                            self.log.trace(
-                                f"{jupyterhub_name} matches {config_jupyterhub_name} - Add {key} to possible hub sets"
-                            )
-                            ret.append((key, value.get("weight", 0)))
-                            break
-                    except:
-                        self.log.trace(
-                            f"{config_jupyterhub_name} is not a valid regex. Check if strings are equal"
-                        )
-                        if jupyterhub_name == config_jupyterhub_name:
-                            self.log.trace(
-                                f"{jupyterhub_name} == {config_jupyterhub_name} - Add {key} to possible hub sets"
-                            )
-                            ret.append((key, value.get("weight", 0)))
-                            break
-            else:
-                self.log.warning(
-                    f"{key}.jupyterhub_name is type {type(config_jupyterhub_name)}. Only list and str (regex or plain comparison) are supported."
-                )
-        return ret
-
-    async def get_credits(self, jupyterhub_name):
-        credits_config = get_credits_from_disk()
-
-        if not credits_config:
-            return {}
-
-        # If no hub is defined, return all available credits
-        if not jupyterhub_name:
-            return credits_config.get("credits", {})
-
-        # check if the given jupyterhub_name is part of any jhub set
-        self.log.trace(f"Check for hub specific credits (hub={jupyterhub_name})...")
-        jupyterhub_sets = self.get_hub_config(credits_config, jupyterhub_name)
-
-        # jupyterhub_name is not allowed to use any credits
-        if len(jupyterhub_sets) == 0:
-            self.log.trace(f"No sets for {jupyterhub_name} found. Return all credits")
-            return credits_config.get("credits", {})
-
-        jupyterhub_sets = sorted(jupyterhub_sets, key=lambda x: x[1])
-        # sorted sorts ascending, we're using weight, so we use the last element
-        # with the biggest weight
-        jupyterhub_set = jupyterhub_sets[-1][0]
-        self.log.debug(f"Sorted matched hub sets. Use hub set {jupyterhub_set}")
-
-        hub_specific_credits = {}
-        hub_specific_credits_keys = (
-            credits_config.get("hubs", {}).get(jupyterhub_set, {}).get("credits", [])
-        )
-        hub_specific_credits_key_exists = "credits" in credits_config.get(
-            "hubs", {}
-        ).get(jupyterhub_set, {})
-
-        for creditName, creditValue in credits_config.get("credits", {}).items():
-            if (
-                not hub_specific_credits_key_exists
-            ) or creditName in hub_specific_credits_keys:
-                hub_specific_credits[creditName] = creditValue
-        self.log.trace(
-            f"Check hubs.{jupyterhub_set}.creditsOverride - This allows you to override any config configured globally in credits._credit_"
-        )
-        for creditsName, overrideDict in (
-            credits_config.get("hubs", {})
-            .get(jupyterhub_set, {})
-            .get("creditsOverride", {})
-            .items()
-        ):
-            if creditsName not in hub_specific_credits.keys():
-                self.log.warning(
-                    f"Do not override {creditsName} for user set {jupyterhub_set}. Credit not part of credits list."
-                )
-                continue
-            for overrideKey, overrideValue in overrideDict.items():
-                self.log.trace(
-                    f"Override {creditsName}.{overrideKey} to user specific values"
-                )
-                hub_specific_credits[creditsName][overrideKey] = overrideValue
-
-        self.log.trace(
-            "Hub credits function ended. Return the following hub specific credits"
-        )
-        self.log.trace(hub_specific_credits)
-        return hub_specific_credits
-
     async def get_flavors(self, jupyterhub_name):
         flavor_config = get_flavors_from_disk()
 
@@ -351,8 +240,55 @@ class JupyterHubOutpost(Application):
         # check if the given jupyterhub_name is part of any jhub set
 
         self.log.trace(f"Check for hub specific flavors (hub={jupyterhub_name})...")
-        jupyterhub_sets = self.get_hub_config(flavor_config, jupyterhub_name)
-        
+        for key, value in flavor_config.get("hubs", {}).items():
+            config_jupyterhub_name = value.get("jupyterhub_name", [])
+            self.log.trace(f"Check {key} hub configuration")
+            if type(config_jupyterhub_name) == list:
+                self.log.trace(
+                    f"Test if {jupyterhub_name} is in hubs.{key}.jupyterhub_name"
+                )
+                if jupyterhub_name in config_jupyterhub_name:
+                    self.log.trace(
+                        f"{jupyterhub_name} in {config_jupyterhub_name} - Add {key} to possible hub sets"
+                    )
+                    jupyterhub_sets.append((key, value.get("weight", 0)))
+                    break
+            elif type(config_jupyterhub_name) == str:
+                self.log.trace(
+                    f"Test if hub value ({jupyterhub_name}) matches the regex pattern {config_jupyterhub_name}"
+                )
+                try:
+                    if re.fullmatch(config_jupyterhub_name, jupyterhub_name):
+                        self.log.trace(
+                            f"{jupyterhub_name} matches {config_jupyterhub_name} - Add {key} to possible hub sets"
+                        )
+                        jupyterhub_sets.append((key, value.get("weight", 0)))
+                        break
+                except re.error:
+                    try:
+                        if re.fullmatch(
+                            fnmatch.translate(config_jupyterhub_name), jupyterhub_name
+                        ):
+                            self.log.trace(
+                                f"{jupyterhub_name} matches {config_jupyterhub_name} - Add {key} to possible hub sets"
+                            )
+                            jupyterhub_sets.append((key, value.get("weight", 0)))
+                            break
+                    except:
+                        self.log.trace(
+                            f"{config_jupyterhub_name} is not a valid regex. Check if strings are equal"
+                        )
+                        if jupyterhub_name == config_jupyterhub_name:
+                            self.log.trace(
+                                f"{jupyterhub_name} == {config_jupyterhub_name} - Add {key} to possible hub sets"
+                            )
+                            jupyterhub_sets.append((key, value.get("weight", 0)))
+                            break
+            else:
+                self.log.warning(
+                    f"Flavor hubs.{key}.jupyterhub_name is type {type(config_jupyterhub_name)}. Only list and str (regex or plain comparison) are supported."
+                )
+
         # jupyterhub_name is not allowed to use any flavors
         if len(jupyterhub_sets) == 0:
             self.log.trace(f"No sets for {jupyterhub_name} found. Return all flavors")
@@ -470,9 +406,57 @@ class JupyterHubOutpost(Application):
 
         return False
 
-    def get_user_config(self, config, jupyterhub_name, authentication):
-        ret = []
-        for key, value in config.get("users", {}).items():
+    update_user_authentication = Any(
+        default_value=None,
+        allow_none=True,
+        config=True,
+        help="""
+        Hook to add a function to manipulate user authentication info before 
+        matching it against the configured flavors.users information.
+        Must return a dict
+        
+        May be a coroutine.
+        
+        Example::
+        
+            async def lowercase_name(authentication):
+                if "name" in authentication.keys():
+                    authentication["name"] = authentication["name"].lower()
+                return authentication
+            
+            c.JupyterHubOutpost.update_user_authentication = lowercase_name
+        """,
+    )
+
+    async def run_update_user_authentication(self, authentication):
+        if self.update_user_authentication:
+            authentication_new = self.update_user_authentication(
+                copy.deepcopy(authentication)
+            )
+            if inspect.isawaitable(authentication_new):
+                authentication_new = await authentication_new
+            return authentication_new
+        else:
+            return authentication
+
+    async def flavors_per_user(self, jupyterhub_name, authentication):
+        hub_flavors = await self.get_flavors(jupyterhub_name)
+        if not authentication:
+            return hub_flavors
+
+        flavor_config = get_flavors_from_disk()
+
+        if not flavor_config.get("users", {}):
+            self.log.info(
+                f"User specific config not set. Use hub ({jupyterhub_name}) specific flavors"
+            )
+            return hub_flavors
+
+        user_sets = []
+        # check if the given user is part of any user set
+        self.log.trace("Check for user specific flavors ...")
+        self.log.trace(authentication)
+        for key, value in flavor_config.get("users", {}).items():
             self.log.trace(f"Check {key} user configuration")
             if "hubs" in value.keys() and jupyterhub_name not in value.get("hubs", []):
                 self.log.trace(f"{jupyterhub_name} not in users.{key}.hubs . Skip")
@@ -481,13 +465,13 @@ class JupyterHubOutpost(Application):
                 matched = False
                 if negate_authentication:
                     self.log.info(
-                        f"Negate logic for matching user to users.{key}.authentication. So users who don't match the authentcation will use this user set"
+                        f"Negate logic for matching user to users.{key}.authentication. So users who don't match the authentication will use this user set"
                     )
                 for config_auth_key, config_auth_value in value.get(
                     "authentication", {}
                 ).items():
                     self.log.trace(
-                        f"Test if users.{key}.authentication.{config_auth_key} matches with user authentication"
+                        f"Test if users.{key}.authentication.{config_auth_key} matches with user authentication ..."
                     )
                     for user_auth_key, user_auth_values in authentication.items():
                         if config_auth_key == user_auth_key:
@@ -516,113 +500,16 @@ class JupyterHubOutpost(Application):
                                 self.log.warning(
                                     f"Flavor users.{key}.authentication.{config_auth_key} is type {type(config_auth_value)}. Only list and str (regex or plain comparison) are supported."
                                 )
+                    self.log.trace(
+                        f"Test if users.{key}.authentication.{config_auth_key} matches with user authentication ...: {matched}"
+                    )
                 if (not negate_authentication) and matched:
-                    ret.append([key, value.get("weight", 0)])
+                    user_sets.append([key, value.get("weight", 0)])
                 elif negate_authentication and (not matched):
                     self.log.trace(
                         f"User does not match users.{key}.authentication , but since users.{key}.negatve_authentication is true, the user will be added to the user subset"
                     )
-                    ret.append([key, value.get("weight", 0)])
-        return ret
-
-    async def credits_per_user(self, jupyterhub_name, authentication):
-        hub_credits = await self.get_credits(jupyterhub_name)
-        if not authentication:
-            return hub_credits
-
-        credits_config = get_credits_from_disk()
-        if not credits_config.get("users", {}):
-            self.log.info(
-                f"User specific config not set. Use hub ({jupyterhub_name}) specific credits"
-            )
-            return hub_credits
-
-        # check if the given user is part of any user set
-        self.log.trace("Check for user specific credits ...")
-        user_sets = self.get_user_config(credits_config, jupyterhub_name, authentication)
-        self.log.trace(authentication)
-
-        self.log.trace("Check for user specific credits ... done")
-        if len(user_sets) == 0:
-            self.log.debug(
-                f"No user specific credits found. Return hub ({jupyterhub_name}) specific credits."
-            )
-            return hub_credits
-
-        user_sets = sorted(user_sets, key=lambda x: x[1])
-        # sorted sorts ascending, we're using weight, so we use the last element
-        # with the biggest weight
-        user_set = user_sets[-1][0]
-        self.log.debug(f"Sorted matched user sets. Use user set {user_set}")
-
-        # When "forbidden" is true, we return an empty dict for this uset_set
-        if credits_config.get("users", {}).get(user_set, {}).get("forbidden", False):
-            self.log.info(
-                f"users.{user_set}.forbidden is True. User's not allowed to use any credits"
-            )
-            return {}
-
-        # Copy default credits for this hub
-        all_credits = await self.get_credits(None)
-        user_credits = {}
-        user_credits_keys_exists = (
-            "credits" in credits_config.get("users", {}).get(user_set, {}).keys()
-        )
-        user_credit_keys = (
-            credits_config.get("users", {}).get(user_set, {}).get("credits", [])
-        )
-        self.log.trace(
-            f"users.{user_set}.forbidden is False. Use users.{user_set}.credits ({user_credit_keys}) for this user"
-        )
-
-        for creditName, creditValue in all_credits.items():
-            if (not user_credits_keys_exists) or creditName in user_credit_keys:
-                user_credits[creditName] = creditValue
-
-        self.log.trace(
-            f"Check users.{user_set}.creditsOverride - This allows you to override any config configured globally in credits._credit_"
-        )
-        for creditName, overrideDict in (
-            credits_config.get("users", {})
-            .get(user_set, {})
-            .get("creditsOverride", {})
-            .items()
-        ):
-            if creditName not in user_credits.keys():
-                self.log.warning(
-                    f"Do not override {creditName} for user set {user_set}. Credit not part of credits list."
-                )
-                continue
-            for overrideKey, overrideValue in overrideDict.items():
-                self.log.trace(
-                    f"Override {creditName}.{overrideKey} to user specific values"
-                )
-                user_credits[creditName][overrideKey] = overrideValue
-
-        self.log.trace(
-            "User credits function ended. Return the following user specific credits"
-        )
-        self.log.trace(user_credits)
-        return user_credits
-
-
-    async def flavors_per_user(self, jupyterhub_name, authentication):
-        hub_flavors = await self.get_flavors(jupyterhub_name)
-        if not authentication:
-            return hub_flavors
-
-        flavor_config = get_flavors_from_disk()
-
-        if not flavor_config.get("users", {}):
-            self.log.info(
-                f"User specific config not set. Use hub ({jupyterhub_name}) specific flavors"
-            )
-            return hub_flavors
-
-        # check if the given user is part of any user set
-        self.log.trace("Check for user specific flavors ...")
-        user_sets = self.get_user_config(flavor_config, jupyterhub_name, authentication)
-        self.log.trace(authentication)
+                    user_sets.append([key, value.get("weight", 0)])
         self.log.trace("Check for user specific flavors ... done")
         if len(user_sets) == 0:
             self.log.debug(
@@ -752,23 +639,6 @@ class JupyterHubOutpost(Application):
         )
         return user_total_count
 
-    async def _outpostspawner_get_credit_values(
-        self,
-        db,
-        jupyterhub_name,
-        user_authentication={}
-    ):
-        default_credits = await self.credits_per_user(
-            jupyterhub_name, user_authentication
-        )
-        configured_credits = copy.deepcopy(default_credits)
-
-        self.log.debug(
-            f"credits for {jupyterhub_name} - Return following credits: {configured_credits}"
-        )
-        return configured_credits
-
-
     async def _outpostspawner_get_flavor_values(
         self,
         db,
@@ -777,8 +647,11 @@ class JupyterHubOutpost(Application):
         add_one_flavor_count=None,
         reduce_one_flavor_count=None,
     ):
+        user_authentication_used = await self.run_update_user_authentication(
+            user_authentication
+        )
         default_flavors = await self.flavors_per_user(
-            jupyterhub_name, user_authentication
+            jupyterhub_name, user_authentication_used
         )
         configured_flavors = copy.deepcopy(default_flavors)
 
@@ -1355,7 +1228,7 @@ class JupyterHubOutpost(Application):
         self.load_config_file(config_file)
         self.init_logging()
         self.log.debug(f"Load config file: {config_file}")
-        self.log.info("Start JupyterHub Outpost Version 2.0.4 (e1454cf4)")
+        self.log.info("Start JupyterHub Outpost Version <VERSION>")
 
     # class for spawning single-user servers
     spawner_class = EntryPointType(
