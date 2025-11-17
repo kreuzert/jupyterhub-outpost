@@ -1,7 +1,4 @@
 # Changelog
-## 2.1.0 (2025-11-17)
-- Feature: Added credits endpoint to support JupyterHub Credit Service extension. Spawner credit values/interval can be configured via flavor
-
 ## 2.0.9 (2025-10-14)
 - BugFix: Update User.auth_state when receiving a Request with auth_state information in it.
 
