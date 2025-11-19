@@ -226,6 +226,120 @@ class JupyterHubOutpost(Application):
         """,
     )
 
+    async def get_credits(self, jupyterhub_name):
+        credits_config = get_credits_from_disk()
+
+        if not credits_config:
+            return {}
+
+        # If no hub is defined, return all available credits
+        if not jupyterhub_name:
+            return credits_config.get("credits", {})
+
+        jupyterhub_sets = []
+        # check if the given jupyterhub_name is part of any jhub set
+
+        self.log.trace(f"Check for hub specific credits (hub={jupyterhub_name})...")
+        for key, value in credits_config.get("hubs", {}).items():
+            config_jupyterhub_name = value.get("jupyterhub_name", [])
+            self.log.trace(f"Check {key} hub configuration")
+            if type(config_jupyterhub_name) == list:
+                self.log.trace(
+                    f"Test if {jupyterhub_name} is in hubs.{key}.jupyterhub_name"
+                )
+                if jupyterhub_name in config_jupyterhub_name:
+                    self.log.trace(
+                        f"{jupyterhub_name} in {config_jupyterhub_name} - Add {key} to possible hub sets"
+                    )
+                    jupyterhub_sets.append((key, value.get("weight", 0)))
+                    break
+            elif type(config_jupyterhub_name) == str:
+                self.log.trace(
+                    f"Test if hub value ({jupyterhub_name}) matches the regex pattern {config_jupyterhub_name}"
+                )
+                try:
+                    if re.fullmatch(config_jupyterhub_name, jupyterhub_name):
+                        self.log.trace(
+                            f"{jupyterhub_name} matches {config_jupyterhub_name} - Add {key} to possible hub sets"
+                        )
+                        jupyterhub_sets.append((key, value.get("weight", 0)))
+                        break
+                except re.error:
+                    try:
+                        if re.fullmatch(
+                            fnmatch.translate(config_jupyterhub_name), jupyterhub_name
+                        ):
+                            self.log.trace(
+                                f"{jupyterhub_name} matches {config_jupyterhub_name} - Add {key} to possible hub sets"
+                            )
+                            jupyterhub_sets.append((key, value.get("weight", 0)))
+                            break
+                    except:
+                        self.log.trace(
+                            f"{config_jupyterhub_name} is not a valid regex. Check if strings are equal"
+                        )
+                        if jupyterhub_name == config_jupyterhub_name:
+                            self.log.trace(
+                                f"{jupyterhub_name} == {config_jupyterhub_name} - Add {key} to possible hub sets"
+                            )
+                            jupyterhub_sets.append((key, value.get("weight", 0)))
+                            break
+            else:
+                self.log.warning(
+                    f"Credit hubs.{key}.jupyterhub_name is type {type(config_jupyterhub_name)}. Only list and str (regex or plain comparison) are supported."
+                )
+
+        # jupyterhub_name is not allowed to use any credits
+        if len(jupyterhub_sets) == 0:
+            self.log.trace(f"No sets for {jupyterhub_name} found. Return all credits")
+            return credits_config.get("credits", {})
+
+        jupyterhub_sets = sorted(jupyterhub_sets, key=lambda x: x[1])
+        # sorted sorts ascending, we're using weight, so we use the last element
+        # with the biggest weight
+        jupyterhub_set = jupyterhub_sets[-1][0]
+        self.log.debug(f"Sorted matched hub sets. Use hub set {jupyterhub_set}")
+
+        hub_specific_credits = {}
+        hub_specific_credits_keys = (
+            credits_config.get("hubs", {}).get(jupyterhub_set, {}).get("credits", [])
+        )
+        hub_specific_credits_key_exists = "credits" in credits_config.get(
+            "hubs", {}
+        ).get(jupyterhub_set, {})
+
+        for creditName, creditValue in credits_config.get("credits", {}).items():
+            if (
+                not hub_specific_credits_key_exists
+            ) or creditName in hub_specific_credits_keys:
+                hub_specific_credits[creditName] = creditValue
+
+        self.log.trace(
+            f"Check hubs.{jupyterhub_set}.creditsOverride - This allows you to override any config configured globally in credits._credit_"
+        )
+        for creditName, overrideDict in (
+            credits_config.get("hubs", {})
+            .get(jupyterhub_set, {})
+            .get("creditsOverride", {})
+            .items()
+        ):
+            if creditName not in hub_specific_credits.keys():
+                self.log.warning(
+                    f"Do not override {creditName} for user set {jupyterhub_set}. Credit not part of credits list."
+                )
+                continue
+            for overrideKey, overrideValue in overrideDict.items():
+                self.log.trace(
+                    f"Override {creditName}.{overrideKey} to user specific values"
+                )
+                hub_specific_credits[creditName][overrideKey] = overrideValue
+
+        self.log.trace(
+            "Hub flavors function ended. Return the following hub specific flavors"
+        )
+        self.log.trace(hub_specific_credits)
+        return hub_specific_credits
+
     async def get_flavors(self, jupyterhub_name):
         flavor_config = get_flavors_from_disk()
 
