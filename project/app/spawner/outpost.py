@@ -642,7 +642,11 @@ class JupyterHubOutpost(Application):
             self.log.info(
                 f"users.{user_set}.forbidden is True. User's not allowed to use any credit"
             )
-            return {}
+            return {
+                "cap": 0,
+                "grant_value": 0,
+                "grant_interval": 86400,
+            }
 
         # Copy default credits for this hub
         all_credits = await self.get_credits(None)
