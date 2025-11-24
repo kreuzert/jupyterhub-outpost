@@ -46,12 +46,54 @@ async def check_running_services():
         jhub_cleanup_names = jhub_cleanup_names.split(";")
         jhub_cleanup_urls_list = jhub_cleanup_urls.split(";")
         jhub_cleanup_tokens_list = jhub_cleanup_tokens.split(";")
+        c_min = min(
+            len(jhub_cleanup_names),
+            len(jhub_cleanup_urls_list),
+            len(jhub_cleanup_tokens_list),
+        )
+        c_max = max(
+            len(jhub_cleanup_names),
+            len(jhub_cleanup_urls_list),
+            len(jhub_cleanup_tokens_list),
+        )
+        if c_min != c_max:
+            log.warning(
+                "PeriodicCheck - Mismatch in lengths of JUPYTERHUB_CLEANUP_NAMES, JUPYTERHUB_CLEANUP_URLS, and JUPYTERHUB_CLEANUP_TOKENS"
+            )
+        for i in range(c_min):
+            log.info(
+                f"PeriodicCheck - Values at index {i}: {jhub_cleanup_names[i]} {jhub_cleanup_urls_list[i]} {bool(jhub_cleanup_tokens_list[i])}"
+            )
         while True:
             try:
                 db = SessionLocal()
                 running_services_in_jhub = {}
+                running_services_on_system = {}
                 i = 0
                 for jhub_cleanup_name in jhub_cleanup_names:
+                    if str(
+                        os.environ.get("JUPYTERHUB_CLEANUP_K8S_CHECK", "false")
+                    ).lower() in ["1", "true"]:
+                        # If in a k8s cluster: list running servers
+                        try:
+                            from kubernetes_asyncio import client, config
+
+                            config.load_incluster_config()
+                            v1 = client.CoreV1Api()
+                            namespace = os.environ.get(
+                                "JUPYTERHUB_CLEANUP_NAMESPACE", "outpost"
+                            )
+                            label_selector = f"app={jhub_cleanup_name}"
+                            pods = await v1.list_namespaced_pod(
+                                namespace=namespace, label_selector=label_selector
+                            )
+                            await v1.api_client.close()
+                            pod_names = [pod.metadata.name for pod in pods.items]
+                            running_services_on_system[jhub_cleanup_name] = pod_names
+                        except:
+                            log.exception(
+                                "PeriodicCheck - Could not check running services in kubernetes cluster"
+                            )
                     # call request, check if it's running
                     try:
                         r = requests.get(
@@ -71,7 +113,14 @@ async def check_running_services():
                     finally:
                         i += 1
                 all_services = get_services_all(db=db)
+                all_services_names = []
                 for service in all_services:
+                    try:
+                        all_services_names.append(service["name"])
+                    except:
+                        log.exception(
+                            "PeriodicCheck - Could not add service name to list"
+                        )
                     if service["jupyterhub"] in running_services_in_jhub.keys():
                         # Only check services which are running at least 30 minutes
                         if (
@@ -97,13 +146,58 @@ async def check_running_services():
                                 log.exception(
                                     "PeriodicCheck - Could not stop / delete service object"
                                 )
+                for jhub_cleanup_name in jhub_cleanup_names:
+                    if str(
+                        os.environ.get("JUPYTERHUB_CLEANUP_K8S_CHECK", "false")
+                    ).lower() in ["1", "true"]:
+                        if (
+                            len(running_services_on_system.get(jhub_cleanup_name, []))
+                            > 0
+                        ):
+                            try:
+                                v1 = None
+                                namespace = os.environ.get(
+                                    "JUPYTERHUB_CLEANUP_NAMESPACE", "outpost"
+                                )
+                                for pod_name in running_services_on_system.get(
+                                    jhub_cleanup_name, []
+                                ):
+                                    if pod_name not in all_services_names:
+                                        try:
+                                            if not v1:
+                                                from kubernetes_asyncio import (
+                                                    client,
+                                                    config,
+                                                )
+
+                                                config.load_incluster_config()
+                                                v1 = client.CoreV1Api()
+                                            await v1.delete_namespaced_pod(
+                                                pod_name,
+                                                namespace,
+                                                grace_period_seconds=0,
+                                            )
+                                            log.info(
+                                                f"PeriodicCheck - Deleted pod {pod_name}"
+                                            )
+                                        except:
+                                            log.exception(
+                                                f"PeriodicCheck - Could not delete pod {pod_name}"
+                                            )
+                            except:
+                                log.exception("PeriodicCheck - Could not delete pods")
+                            finally:
+                                try:
+                                    await v1.api_client.close()
+                                except:
+                                    pass
             except:
                 log.exception(
                     "PeriodicCheck - Unexpected error in internal cleanup service"
                 )
             finally:
                 db.close()
-                await asyncio.sleep(30)
+                await asyncio.sleep(1800)
     else:
         log.info(
             "PeriodicCheck - environment variables JUPYTERHUB_CLEANUP_NAMES, JUPYTERHUB_CLEANUP_URLS and JUPYTERHUB_CLEANUP_TOKENS not set. Do not run periodic cleanup check in background."
@@ -189,7 +283,6 @@ async def lifespan(app: FastAPI):
 
 
 def create_application() -> FastAPI:
-    global background_tasks
     loop = None
     if os.environ.get("CHECK_ENDDATES", "true").lower() in ["true", "1"]:
         if not loop:
@@ -329,7 +422,6 @@ async def recreate_tunnels():
 
 
 async def shutdown_event():
-    global background_tasks
     for t in background_tasks:
         t.terminate()
 
