@@ -15,7 +15,8 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/*
 
 # create app user
-RUN adduser --uid 1001 --disabled-password ${USERNAME}
+RUN EXISTING_USER=$(getent passwd 1000 | cut -d: -f1) && if [ -n "$EXISTING_USER" ]; then userdel -r "$EXISTING_USER"; fi
+RUN adduser --uid 1000 --disabled-password ${USERNAME}
 RUN mkdir -p ${APP_HOME} && mkdir -p ${HOME}/.ssh
 WORKDIR ${APP_HOME}
 
