@@ -29,6 +29,9 @@ background_tasks = []
 
 
 async def check_running_services():
+    wrapper = get_wrapper()
+    wrapper.init_logging()
+    wrapper.update_logging()
     from database import db_url
     from database import engine_kwargs
     from sqlalchemy import create_engine
@@ -36,6 +39,7 @@ async def check_running_services():
 
     engine = create_engine(db_url, **engine_kwargs)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    sleep_timer = int(os.environ.get("JUPYTERHUB_CLEANUP_SLEEP_TIMER", "1800"))
     jhub_cleanup_names = os.environ.get("JUPYTERHUB_CLEANUP_NAMES", "")
     jhub_cleanup_urls = os.environ.get("JUPYTERHUB_CLEANUP_URLS", "")
     jhub_cleanup_tokens = os.environ.get("JUPYTERHUB_CLEANUP_TOKENS", "")
@@ -85,7 +89,9 @@ async def check_running_services():
                             )
                             label_selector = f"app={jhub_cleanup_name}"
                             pods = await v1.list_namespaced_pod(
-                                namespace=namespace, label_selector=label_selector
+                                namespace=namespace,
+                                label_selector=label_selector,
+                                _request_timeout=(5, 60),
                             )
                             await v1.api_client.close()
                             pod_names = [pod.metadata.name for pod in pods.items]
@@ -176,6 +182,7 @@ async def check_running_services():
                                                 pod_name,
                                                 namespace,
                                                 grace_period_seconds=0,
+                                                _request_timeout=(5, 60),
                                             )
                                             log.info(
                                                 f"PeriodicCheck - Deleted pod {pod_name}"
@@ -197,7 +204,7 @@ async def check_running_services():
                 )
             finally:
                 db.close()
-                await asyncio.sleep(1800)
+                await asyncio.sleep(sleep_timer)
     else:
         log.info(
             "PeriodicCheck - environment variables JUPYTERHUB_CLEANUP_NAMES, JUPYTERHUB_CLEANUP_URLS and JUPYTERHUB_CLEANUP_TOKENS not set. Do not run periodic cleanup check in background."
@@ -205,6 +212,9 @@ async def check_running_services():
 
 
 async def check_enddates():
+    wrapper = get_wrapper()
+    wrapper.init_logging()
+    wrapper.update_logging()
     from database import db_url
     from database import engine_kwargs
     from sqlalchemy import create_engine
@@ -212,6 +222,7 @@ async def check_enddates():
 
     engine = create_engine(db_url, **engine_kwargs)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    sleep_timer = int(os.environ.get("JUPYTERHUB_CHECK_ENDDATES_SLEEP_TIMER", "60"))
     while True:
         try:
             log.debug("Periodic check for ended services")
@@ -248,7 +259,7 @@ async def check_enddates():
             log.exception("Exception in end date checked.")
         finally:
             db.close()
-            await asyncio.sleep(30)
+            await asyncio.sleep(sleep_timer)
 
 
 def sync_check_enddates(loop):

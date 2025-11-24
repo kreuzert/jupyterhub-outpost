@@ -113,6 +113,10 @@ class JupyterHubOutpost(Application):
                     f"Could not delete parent cert dir of {jupyterhub_name}-{service_name} ({start_id})."
                 )
             del self.spawners[f"{jupyterhub_name}-{service_name}-{start_id}"]
+            for task in asyncio.all_tasks():
+                coro = task.get_coro()
+                if "ResourceReflector._watch_and_update" in repr(coro):
+                    task.cancel()
 
     async def get_spawner(
         self,
