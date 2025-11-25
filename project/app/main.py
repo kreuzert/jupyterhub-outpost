@@ -106,6 +106,13 @@ async def check_running_services():
                                 log.exception(
                                     "PeriodicCheck - Could not check running services in kubernetes cluster"
                                 )
+                            else:
+                                log.debug(
+                                    f"PeriodicCheck - Checked running services on system for {jhub_cleanup_name} {pods.items}"
+                                )
+                                log.debug(
+                                    f"PeriodicCheck - Found running services on system for {jhub_cleanup_name}: {running_services_on_system.get(jhub_cleanup_name, [])}"
+                                )
                     except:
                         log.exception(
                             "PeriodicCheck - Could not import kubernetes_asyncio module for k8s running services check"
