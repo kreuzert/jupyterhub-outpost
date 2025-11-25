@@ -96,7 +96,12 @@ async def check_running_services():
                                     _request_timeout=60,
                                 )
                                 running_services_on_system[jhub_cleanup_name] = [
-                                    pod.metadata.labels["hub.jupyter.org/servername"]
+                                    (
+                                        pod.metadata.name,
+                                        pod.metadata.labels[
+                                            "hub.jupyter.org/servername"
+                                        ],
+                                    )
                                     for pod in pods.items
                                     if pod.metadata.labels
                                     and "hub.jupyter.org/servername"
@@ -192,10 +197,13 @@ async def check_running_services():
                                 namespace = os.environ.get(
                                     "JUPYTERHUB_CLEANUP_NAMESPACE", "outpost"
                                 )
-                                for pod_name in running_services_on_system.get(
+                                for (
+                                    pod_name,
+                                    servername,
+                                ) in running_services_on_system.get(
                                     jhub_cleanup_name, []
                                 ):
-                                    if pod_name not in all_services_names:
+                                    if servername not in all_services_names:
                                         try:
                                             pods = v1.delete_namespaced_pod(
                                                 pod_name,
