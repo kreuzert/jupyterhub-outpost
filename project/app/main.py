@@ -78,21 +78,19 @@ async def check_running_services():
                     os.environ.get("JUPYTERHUB_CLEANUP_K8S_CHECK", "false")
                 ).lower() in ["1", "true"]:
                     try:
-                        from kubernetes_asyncio import client, config
+                        from kubernetes import client, config
 
                         config.load_incluster_config()
                         v1 = client.CoreV1Api()
                         for jhub_cleanup_name in jhub_cleanup_names:
                             # If in a k8s cluster: list running servers
                             try:
-                                from kubernetes_asyncio import client, config
-
                                 namespace = os.environ.get(
                                     "JUPYTERHUB_CLEANUP_NAMESPACE", "outpost"
                                 )
                                 label_selector = f"app={jhub_cleanup_name}"
 
-                                pods = await v1.list_namespaced_pod(
+                                pods = v1.list_namespaced_pod(
                                     namespace=namespace,
                                     label_selector=label_selector,
                                     _request_timeout=60,
@@ -168,7 +166,7 @@ async def check_running_services():
                     os.environ.get("JUPYTERHUB_CLEANUP_K8S_CHECK", "false")
                 ).lower() in ["1", "true"]:
                     try:
-                        from kubernetes_asyncio import (
+                        from kubernetes import (
                             client,
                             config,
                         )
@@ -192,7 +190,7 @@ async def check_running_services():
                                 ):
                                     if pod_name not in all_services_names:
                                         try:
-                                            pods = await v1.delete_namespaced_pod(
+                                            pods = v1.delete_namespaced_pod(
                                                 pod_name,
                                                 namespace=namespace,
                                                 grace_period_seconds=0,
