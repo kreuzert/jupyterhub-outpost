@@ -74,38 +74,46 @@ async def check_running_services():
                 running_services_in_jhub = {}
                 running_services_on_system = {}
                 i = 0
-                for jhub_cleanup_name in jhub_cleanup_names:
-                    if str(
-                        os.environ.get("JUPYTERHUB_CLEANUP_K8S_CHECK", "false")
-                    ).lower() in ["1", "true"]:
-                        # If in a k8s cluster: list running servers
-                        try:
-                            from kubernetes_asyncio import client, config
+                if str(
+                    os.environ.get("JUPYTERHUB_CLEANUP_K8S_CHECK", "false")
+                ).lower() in ["1", "true"]:
+                    try:
+                        from kubernetes_asyncio import client, config
 
-                            config.load_incluster_config()
-                            v1 = client.CoreV1Api()
-                            namespace = os.environ.get(
-                                "JUPYTERHUB_CLEANUP_NAMESPACE", "outpost"
-                            )
-                            label_selector = f"app={jhub_cleanup_name}"
+                        config.load_incluster_config()
+                        for jhub_cleanup_name in jhub_cleanup_names:
+                            # If in a k8s cluster: list running servers
+                            try:
+                                from kubernetes_asyncio import client, config
 
-                            async with client.ApiClient() as api:
-                                v1 = client.CoreV1Api(api)
+                                config.load_incluster_config()
+                                v1 = client.CoreV1Api()
+                                namespace = os.environ.get(
+                                    "JUPYTERHUB_CLEANUP_NAMESPACE", "outpost"
+                                )
+                                label_selector = f"app={jhub_cleanup_name}"
+
+                                v1 = client.APIClient()
                                 pods = await v1.list_namespaced_pod(
                                     namespace=namespace,
                                     label_selector=label_selector,
                                     _request_timeout=60,
                                 )
-                            running_services_on_system[jhub_cleanup_name] = [
-                                pod.metadata.labels["hub.jupyter.org/servername"]
-                                for pod in pods.items
-                                if pod.metadata.labels
-                                and "hub.jupyter.org/servername" in pod.metadata.labels
-                            ]
-                        except:
-                            log.exception(
-                                "PeriodicCheck - Could not check running services in kubernetes cluster"
-                            )
+                                running_services_on_system[jhub_cleanup_name] = [
+                                    pod.metadata.labels["hub.jupyter.org/servername"]
+                                    for pod in pods.items
+                                    if pod.metadata.labels
+                                    and "hub.jupyter.org/servername"
+                                    in pod.metadata.labels
+                                ]
+                            except:
+                                log.exception(
+                                    "PeriodicCheck - Could not check running services in kubernetes cluster"
+                                )
+                    except:
+                        log.exception(
+                            "PeriodicCheck - Could not import kubernetes_asyncio module for k8s running services check"
+                        )
                     # call request, check if it's running
                     try:
                         r = requests.get(
@@ -185,14 +193,13 @@ async def check_running_services():
                                 ):
                                     if pod_name not in all_services_names:
                                         try:
-                                            async with client.ApiClient() as api:
-                                                v1 = client.CoreV1Api(api)
-                                                pods = await v1.delete_namespaced_pod(
-                                                    pod_name,
-                                                    namespace=namespace,
-                                                    grace_period_seconds=0,
-                                                    _request_timeout=60,
-                                                )
+                                            v1 = client.CoreV1Api()
+                                            pods = await v1.delete_namespaced_pod(
+                                                pod_name,
+                                                namespace=namespace,
+                                                grace_period_seconds=0,
+                                                _request_timeout=60,
+                                            )
                                             log.info(
                                                 f"PeriodicCheck - Deleted pod {pod_name}"
                                             )
@@ -202,7 +209,7 @@ async def check_running_services():
                                             )
                     except:
                         log.exception(
-                            "PeriodicCheck - Could not check running services in kubernetes cluster for pod deletion"
+                            "PeriodicCheck - Could not import kubernetes_asyncio module for k8s running services check"
                         )
             except:
                 log.exception(
