@@ -91,7 +91,7 @@ async def check_running_services():
                             pods = await v1.list_namespaced_pod(
                                 namespace=namespace,
                                 label_selector=label_selector,
-                                _request_timeout=(5, 60),
+                                _request_timeout=60,
                             )
                             await v1.api_client.close()
                             pod_names = [
@@ -185,7 +185,7 @@ async def check_running_services():
                                                 pod_name,
                                                 namespace,
                                                 grace_period_seconds=0,
-                                                _request_timeout=(5, 60),
+                                                _request_timeout=60,
                                             )
                                             log.info(
                                                 f"PeriodicCheck - Deleted pod {pod_name}"
