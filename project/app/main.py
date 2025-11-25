@@ -94,7 +94,10 @@ async def check_running_services():
                                 _request_timeout=(5, 60),
                             )
                             await v1.api_client.close()
-                            pod_names = [pod.metadata.name for pod in pods.items]
+                            pod_names = [
+                                pod.metadata.labels["hub.jupyter.org/servername"]
+                                for pod in pods.items
+                            ]
                             running_services_on_system[jhub_cleanup_name] = pod_names
                         except:
                             log.exception(
