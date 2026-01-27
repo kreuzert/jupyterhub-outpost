@@ -128,7 +128,7 @@ async def check_running_services():
                         r.raise_for_status()
                         running_services_in_jhub[jhub_cleanup_name] = r.json()
                     except:
-                        log.exception(
+                        log.warning(
                             f"PeriodicCheck - Could not check running services for {jhub_cleanup_name}"
                         )
                     finally:

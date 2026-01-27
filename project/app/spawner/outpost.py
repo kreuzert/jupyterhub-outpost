@@ -31,6 +31,7 @@ from jupyterhub.utils import iterate_until
 from jupyterhub.utils import maybe_future
 from sqlalchemy import func
 from tornado.httpclient import AsyncHTTPClient
+from tornado.httpclient import HTTPClientError
 from tornado.httpclient import HTTPRequest
 from tornado.log import access_log
 from tornado.log import app_log
@@ -1060,12 +1061,7 @@ class JupyterHubOutpost(Application):
                     body=json.dumps(event),
                     **wrapper.get_request_kwargs(),
                 )
-                try:
-                    await wrapper.http_client.fetch(req)
-                except:
-                    self.log.exception(
-                        f"{self._log_name} - Could not send event to {event_url} for {self._log_name}: {event.get('html_message', event.get('message', ''))}"
-                    )
+                await wrapper.http_client.fetch(req)
 
             async def _outpostspawner_forward_events(self):
                 # retrieve progress events from the Spawner
@@ -1078,10 +1074,18 @@ class JupyterHubOutpost(Application):
                             # don't allow events to sneakily set the 'ready' flag
                             if "ready" in event:
                                 event.pop("ready", None)
-                            await self._outpostspawner_send_event(event)
+                            try:
+                                await self._outpostspawner_send_event(event)
+                            except HTTPClientError:
+                                self.log.exception(
+                                    f"{self._log_name} - Could not forward event for {self._log_name}: {event.get('html_message', event.get('message', ''))}"
+                                )
+                                self._spawn_pending = False
+                                return
                     except asyncio.CancelledError:
                         pass
-
+                    finally:
+                        self._spawn_pending = False
                 self._spawn_pending = False
 
             async def _outpostspawner_db_start(self, db):
