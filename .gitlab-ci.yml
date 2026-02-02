@@ -38,7 +38,8 @@ build-devel:
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > ~/.docker/config.json
     - buildkitd &
     - sleep 5
-    - buildctl build --frontend dockerfile.v0 --export-cache type=registry,ref=$CACHE_IMAGE,mode=max --import-cache type=registry,ref=$CACHE_IMAGE --local context=${CI_PROJECT_DIR} --local dockerfile=${CI_PROJECT_DIR}/devel/ --output type=image,name=${CI_REGISTRY_IMAGE}:devel,push=true --output type=image,name=${CI_REGISTRY_IMAGE}:devel${CI_COMMIT_SHORT_SHA},push=true
+    - buildctl build --frontend dockerfile.v0 --local context=${CI_PROJECT_DIR} --local dockerfile=${CI_PROJECT_DIR}/devel/ --output type=image,name=${CI_REGISTRY_IMAGE}:devel,push=true --output type=image,name=${CI_REGISTRY_IMAGE}:devel${CI_COMMIT_SHORT_SHA},push=true
+    # - buildctl build --frontend dockerfile.v0 --export-cache type=registry,ref=$CACHE_IMAGE,mode=max --import-cache type=registry,ref=$CACHE_IMAGE --local context=${CI_PROJECT_DIR} --local dockerfile=${CI_PROJECT_DIR}/devel/ --output type=image,name=${CI_REGISTRY_IMAGE}:devel,push=true --output type=image,name=${CI_REGISTRY_IMAGE}:devel${CI_COMMIT_SHORT_SHA},push=true
   rules:
     - when: manual
   allow_failure: true
@@ -72,7 +73,7 @@ build-tag:
   stage: build
   image: moby/buildkit:latest
   variables:
-    CACHE_IMAGE: "$CI_REGISTRY_IMAGE:buildcachedevel"
+    CACHE_IMAGE: "$CI_REGISTRY_IMAGE:buildcache"
   script:
     - mkdir -p ~/.docker
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > ~/.docker/config.json
