@@ -551,14 +551,15 @@ def test_override_allowed(client, db_session):
     assert response.status_code == 200
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("spawner_config", [simple_override])
-def test_override_allowed_419(client, db_session):
+async def test_override_allowed_200(client, db_session):
     # Two different jupyterhub can start services with the same name
     service_name = "user-servername"
     service_data = {
         "name": service_name,
         "flavor": "typea",
-        "misc": {"image": "override_image"},
+        "misc": {"cmd": "/some/cmd"},
     }
     with patch(
         "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
@@ -566,17 +567,20 @@ def test_override_allowed_419(client, db_session):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user2
         )
-    assert response.status_code == 419
+    assert response.status_code == 200
+    spawner = await get_spawner(jupyterhub_name, service_name, "0", {})
+    assert spawner.cmd == ["/bin/echo"]
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("spawner_config", [simple_override])
-def test_override_allowed_419_error_msg(client, db_session):
+async def test_override_allowed_419_error_msg(client, db_session):
     # Two different jupyterhub can start services with the same name
     service_name = "user-servername"
     service_data = {
         "name": service_name,
         "flavor": "typea",
-        "misc": {"image": "override_image"},
+        "misc": {"cmd": "/some/cmd"},
     }
     with patch(
         "spawner.outpost.get_flavors_from_disk", return_value=simple_flavors
@@ -584,13 +588,9 @@ def test_override_allowed_419_error_msg(client, db_session):
         response = client.post(
             "/services", json=service_data, headers=headers_auth_user2
         )
-    assert response.status_code == 419
-    args_list = [str(s) for s in response.json().get("args", [])]
-    message = f"{response.json().get('module')}{response.json().get('class')}: {' - '.join(args_list)}"
-    assert (
-        message
-        == f"Exception: {jupyterhub_name2} is not allowed to override the configuration. Used keys: {list(service_data.get('misc', {}).keys())}"
-    )
+    assert response.status_code == 200
+    spawner = await get_spawner(jupyterhub_name, service_name, "0", {})
+    assert spawner.cmd == ["/bin/echo"]
 
 
 @pytest.mark.parametrize("spawner_config", [simple_override])
