@@ -1238,15 +1238,15 @@ class JupyterHubOutpost(Application):
         if allow_override:
             for key, value in orig_body.get("misc", {}).items():
                 if key in config.keys():
-                    if type(value) == dict and type(config.keys()) == dict:
+                    if type(value) == dict and type(config[key]) == dict:
                         wrapper.log.warning(
                             f"{user.name}:{service_name} - Central JupyterHub overrides these keys to your configuration for `c.{spawner_class_name}.{key}`: {value.keys()}. To disable this behaviour use `c.JupyterHubOutpost.allow_override`"
                         )
-                    else:
+                    elif value != config[key]:
                         wrapper.log.warning(
                             f"{user.name}:{service_name} - Central JupyterHub overrides your configuration for `c.{spawner_class_name}.{key}` - {config[key]} -> {value}. To disable this behaviour use `c.JupyterHubOutpost.allow_override`"
                         )
-                if type(value) == dict and type(config.keys()) == dict:
+                if type(value) == dict and type(config[key]) == dict:
                     config[key].update(value)
                 else:
                     config[key] = value
