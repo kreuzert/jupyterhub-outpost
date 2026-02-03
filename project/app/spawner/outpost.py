@@ -1217,14 +1217,13 @@ class JupyterHubOutpost(Application):
                     db.commit()
                 return ret
 
+        allow_override = True
         if wrapper.allow_override and orig_body.get("misc", {}):
-            ret = wrapper.allow_override(jupyterhub_name, orig_body.get("misc", {}))
-            if inspect.isawaitable(ret):
-                ret = await ret
-            if not ret:
-                raise Exception(
-                    f"{jupyterhub_name} is not allowed to override the configuration. Used keys: {list(orig_body.get('misc', {}).keys())}"
-                )
+            allow_override = wrapper.allow_override(
+                jupyterhub_name, orig_body.get("misc", {})
+            )
+            if inspect.isawaitable(allow_override):
+                allow_override = await allow_override
 
         # Update config file for each Spawner creation
         config_file = os.environ.get("OUTPOST_CONFIG_FILE", "spawner_config.py")
@@ -1235,20 +1234,30 @@ class JupyterHubOutpost(Application):
             .__name__
         )
         config = wrapper.config.get(spawner_class_name, {})
+        user = OutpostUser(orig_body, auth_state)
+        if allow_override:
+            for key, value in orig_body.get("misc", {}).items():
+                if key in config.keys():
+                    if type(value) == dict and type(config.keys()) == dict:
+                        wrapper.log.warning(
+                            f"{user.name}:{service_name} - Central JupyterHub overrides these keys to your configuration for `c.{spawner_class_name}.{key}`: {value.keys()}. To disable this behaviour use `c.JupyterHubOutpost.allow_override`"
+                        )
+                    else:
+                        wrapper.log.warning(
+                            f"{user.name}:{service_name} - Central JupyterHub overrides your configuration for `c.{spawner_class_name}.{key}` - {config[key]} -> {value}. To disable this behaviour use `c.JupyterHubOutpost.allow_override`"
+                        )
+                if type(value) == dict and type(config.keys()) == dict:
+                    config[key].update(value)
+                else:
+                    config[key] = value
         config.update(
             {
                 "hub": OutpostJupyterHub(orig_body).hub,
-                "user": OutpostUser(orig_body, auth_state),
+                "user": user,
             }
         )
-        for key, value in orig_body.get("misc", {}).items():
-            wrapper.log.debug(
-                f"{config['user'].name}:{service_name} - Override configuration via misc for {service_name}: {key} - {value}"
-            )
-            config[key] = value
-
         wrapper.log.info(
-            f"{config['user'].name}:{service_name} - Create Spawner ( {spawner_class_name} ) object for jupyterhub {jupyterhub_name}"
+            f"{user.name}:{service_name} - Create Spawner ( {spawner_class_name} ) object for jupyterhub {jupyterhub_name}"
         )
         spawner = DummySpawner(
             jupyterhub_name,
