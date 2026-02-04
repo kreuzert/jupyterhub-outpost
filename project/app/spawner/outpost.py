@@ -150,7 +150,7 @@ class JupyterHubOutpost(Application):
         return self.spawners[f"{jupyterhub_name}-{service_name}-{start_id}"]
 
     allow_override = Any(
-        default_value=None,
+        default_value=True,
         help="""
         An optional hook function you can implement to decide if
         the Spawner configuration can be overriden.
@@ -1217,15 +1217,11 @@ class JupyterHubOutpost(Application):
                     db.commit()
                 return ret
 
-        allow_override = getattr(wrapper, "allow_override", True)
-        if wrapper.allow_override and orig_body.get("misc", {}):
-            allow_override = wrapper.allow_override
-            if callable(allow_override):
-                allow_override = allow_override(
-                    jupyterhub_name, orig_body.get("misc", {})
-                )
-                if inspect.isawaitable(allow_override):
-                    allow_override = await allow_override
+        allow_override = wrapper.allow_override
+        if callable(allow_override) and orig_body.get("misc", {}):
+            allow_override = allow_override(jupyterhub_name, orig_body.get("misc", {}))
+            if inspect.isawaitable(allow_override):
+                allow_override = await allow_override
 
         # Update config file for each Spawner creation
         config_file = os.environ.get("OUTPOST_CONFIG_FILE", "spawner_config.py")
