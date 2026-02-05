@@ -132,6 +132,7 @@ async def delete_service(
 ) -> JSONResponse:
     # Check if service exists to throw correct error message
     service = get_service(jupyterhub_name, service_name, start_id, db)
+    collect_logs = request.query_params.get("collect_logs", "false").lower() == "true"
     if request.headers.get("execution-type", "sync") == "async":
         log.info(f"Delete service {service_name} for {jupyterhub_name} in background")
         body = decrypt(service.body)
@@ -226,7 +227,12 @@ async def delete_service(
     else:
         log.info(f"Delete service {service_name} for {jupyterhub_name} and wait for it")
         logs = await full_stop_and_remove(
-            jupyterhub_name, service_name, start_id, db, request
+            jupyterhub_name,
+            service_name,
+            start_id,
+            db,
+            request,
+            collect_logs=collect_logs,
         )
         return JSONResponse(content={"logs": logs}, status_code=200)
 

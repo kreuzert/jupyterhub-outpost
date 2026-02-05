@@ -159,6 +159,7 @@ async def full_stop_and_remove(
     body={},
     state={},
     run_async=False,
+    collect_logs=False,
 ):
     if not run_async:
         try:
@@ -198,7 +199,7 @@ async def full_stop_and_remove(
     spawner.log.info(f"{spawner._log_name} - Stop service and remove it from database.")
     logs = {}
     try:
-        logs = await spawner._outpostspawner_db_stop(db)
+        logs = await spawner._outpostspawner_db_stop(db, collect_logs=collect_logs)
     except:
         spawner.log.exception(f"{spawner._log_name} - Stop failed.")
     finally:

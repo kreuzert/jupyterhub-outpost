@@ -1182,12 +1182,14 @@ class JupyterHubOutpost(Application):
                     db.commit()
                 return ret
 
-            async def _outpostspawner_db_stop(self, db, now=False):
+            async def _outpostspawner_db_stop(self, db, now=False, collect_logs=False):
                 wrapper.update_logging()
                 self.log.info(f"{self._log_name} - Stop service")
                 logs = {}
-                if hasattr(self, "get_jupyter_server_logs") and callable(
-                    getattr(self, "get_jupyter_server_logs")
+                if (
+                    collect_logs
+                    and hasattr(self, "get_jupyter_server_logs")
+                    and callable(getattr(self, "get_jupyter_server_logs"))
                 ):
                     logs = self.get_jupyter_server_logs()
                     if inspect.isawaitable(logs):
