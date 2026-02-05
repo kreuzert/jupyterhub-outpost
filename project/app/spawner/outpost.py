@@ -1185,7 +1185,7 @@ class JupyterHubOutpost(Application):
             async def _outpostspawner_db_stop(self, db, now=False, collect_logs=False):
                 wrapper.update_logging()
                 self.log.info(f"{self._log_name} - Stop service")
-                logs = {}
+                logs = []
                 if (
                     collect_logs
                     and hasattr(self, "get_jupyter_server_logs")
