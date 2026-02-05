@@ -193,12 +193,12 @@ async def full_stop_and_remove(
         auth_state,
         state,
     )
-
     flavor_update_url = spawner.get_env().get("JUPYTERHUB_FLAVORS_UPDATE_URL", "")
     flavor_update_token = spawner.get_env().get("JUPYTERHUB_FLAVORS_UPDATE_TOKEN", "")
     spawner.log.info(f"{spawner._log_name} - Stop service and remove it from database.")
+    logs = {}
     try:
-        await spawner._outpostspawner_db_stop(db)
+        logs = await spawner._outpostspawner_db_stop(db)
     except:
         spawner.log.exception(f"{spawner._log_name} - Stop failed.")
     finally:
@@ -221,6 +221,7 @@ async def full_stop_and_remove(
         spawner.log.exception(
             f"{spawner._log_name} - Could not send flavor update to {jupyterhub_name}."
         )
+    return logs
 
 
 def get_auth_state(headers):

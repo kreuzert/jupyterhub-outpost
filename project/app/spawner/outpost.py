@@ -1158,6 +1158,7 @@ class JupyterHubOutpost(Application):
                 self.log.debug(f"{self._log_name} - Poll service")
 
                 service = get_service(jupyterhub_name, self.name, self.start_id, db)
+
                 if not service.state_stored:
                     self.log.debug(
                         f"{self._log_name} - Start function not finished yet. Return None"
@@ -1184,11 +1185,18 @@ class JupyterHubOutpost(Application):
             async def _outpostspawner_db_stop(self, db, now=False):
                 wrapper.update_logging()
                 self.log.info(f"{self._log_name} - Stop service")
+                logs = {}
+                if hasattr(self, "get_jupyter_server_logs") and callable(
+                    getattr(self, "get_jupyter_server_logs")
+                ):
+                    logs = self.get_jupyter_server_logs()
+                    if inspect.isawaitable(logs):
+                        logs = await logs
                 _outpostspawner_stop_future = asyncio.ensure_future(
                     self._outpostspawner_db_stop_call(db, now)
                 )
                 await asyncio.wait([_outpostspawner_stop_future])
-                return _outpostspawner_stop_future.result()
+                return logs
 
             async def _outpostspawner_db_stop_call(self, db, now=False):
                 # Update from db if possible
@@ -1225,12 +1233,14 @@ class JupyterHubOutpost(Application):
 
         # Update config file for each Spawner creation
         config_file = os.environ.get("OUTPOST_CONFIG_FILE", "spawner_config.py")
-        wrapper.load_config_file(config_file)
         spawner_class_name = (
             wrapper.config.get("JupyterHubOutpost", {})
             .get("spawner_class", LocalProcessSpawner)
             .__name__
         )
+        if spawner_class_name in wrapper.config:
+            del wrapper.config[spawner_class_name]
+        wrapper.load_config_file(config_file)
         config = wrapper.config.get(spawner_class_name, {})
         user = OutpostUser(orig_body, auth_state)
         if allow_override:

@@ -107,6 +107,7 @@ async def get_services(
 ) -> JSONResponse:
     log.debug(f"Get service {service_name} for {jupyterhub_name}")
     service = get_service(jupyterhub_name, service_name, start_id, db)
+
     spawner = await get_spawner(
         jupyterhub_name,
         service_name,
@@ -224,8 +225,10 @@ async def delete_service(
         return JSONResponse(content={}, status_code=202, background=task)
     else:
         log.info(f"Delete service {service_name} for {jupyterhub_name} and wait for it")
-        await full_stop_and_remove(jupyterhub_name, service_name, start_id, db, request)
-        return JSONResponse(content={}, status_code=200)
+        logs = await full_stop_and_remove(
+            jupyterhub_name, service_name, start_id, db, request
+        )
+        return JSONResponse(content={"logs": logs}, status_code=200)
 
 
 @router.post("/services")
