@@ -1159,24 +1159,6 @@ class JupyterHubOutpost(Application):
 
                 service = get_service(jupyterhub_name, self.name, self.start_id, db)
 
-                if not service.state_stored:
-                    self.log.debug(
-                        f"{self._log_name} - Start function not finished yet. Return None"
-                    )
-                    return None, []
-
-                try:
-                    self.load_state(decrypt(service.state))
-                except:
-                    self.log.exception(
-                        f"{self._log_name} - Could not load state. Return None"
-                    )
-                    return None, []
-
-                ret = self.poll()
-                if inspect.isawaitable(ret):
-                    ret = await ret
-
                 logs = []
                 if (
                     collect_logs
@@ -1186,6 +1168,24 @@ class JupyterHubOutpost(Application):
                     logs = self.get_jupyter_server_logs()
                     if inspect.isawaitable(logs):
                         logs = await logs
+
+                if not service.state_stored:
+                    self.log.debug(
+                        f"{self._log_name} - Start function not finished yet. Return None"
+                    )
+                    return None, logs
+
+                try:
+                    self.load_state(decrypt(service.state))
+                except:
+                    self.log.exception(
+                        f"{self._log_name} - Could not load state. Return None"
+                    )
+                    return None, logs
+
+                ret = self.poll()
+                if inspect.isawaitable(ret):
+                    ret = await ret
 
                 if service:
                     service.last_update = datetime.now(timezone.utc)
