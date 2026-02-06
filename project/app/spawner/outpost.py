@@ -1152,7 +1152,7 @@ class JupyterHubOutpost(Application):
                 db.commit()
                 return ret
 
-            async def _outpostspawner_db_poll(self, db):
+            async def _outpostspawner_db_poll(self, db, collect_logs=False):
                 # Update from db
                 wrapper.update_logging()
                 self.log.debug(f"{self._log_name} - Poll service")
@@ -1176,11 +1176,22 @@ class JupyterHubOutpost(Application):
                 ret = self.poll()
                 if inspect.isawaitable(ret):
                     ret = await ret
+
+                logs = []
+                if (
+                    collect_logs
+                    and hasattr(self, "get_jupyter_server_logs")
+                    and callable(getattr(self, "get_jupyter_server_logs"))
+                ):
+                    logs = self.get_jupyter_server_logs()
+                    if inspect.isawaitable(logs):
+                        logs = await logs
+
                 if service:
                     service.last_update = datetime.now(timezone.utc)
                     db.add(service)
                     db.commit()
-                return ret
+                return ret, logs
 
             async def _outpostspawner_db_stop(self, db, now=False, collect_logs=False):
                 wrapper.update_logging()

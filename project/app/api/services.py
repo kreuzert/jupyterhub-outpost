@@ -115,8 +115,9 @@ async def get_services(
         decrypt(service.body),
         get_auth_state(request.headers),
     )
-    ret = await spawner._outpostspawner_db_poll(db)
-    return JSONResponse(content={"status": ret}, status_code=200)
+    collect_logs = request.query_params.get("collect_logs", "false").lower() == "true"
+    ret, logs = await spawner._outpostspawner_db_poll(db, collect_logs=collect_logs)
+    return JSONResponse(content={"status": ret, "logs": logs}, status_code=200)
 
 
 @router.delete("/services/{service_name}")
