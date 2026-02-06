@@ -1163,7 +1163,7 @@ class JupyterHubOutpost(Application):
                     self.log.debug(
                         f"{self._log_name} - Start function not finished yet. Return None"
                     )
-                    return None
+                    return None, []
 
                 try:
                     self.load_state(decrypt(service.state))
@@ -1171,7 +1171,7 @@ class JupyterHubOutpost(Application):
                     self.log.exception(
                         f"{self._log_name} - Could not load state. Return None"
                     )
-                    return None
+                    return None, []
 
                 ret = self.poll()
                 if inspect.isawaitable(ret):
