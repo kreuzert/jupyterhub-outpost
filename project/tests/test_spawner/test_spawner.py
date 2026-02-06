@@ -180,7 +180,7 @@ async def test_poll(db_session):
     await spawner._outpostspawner_db_start(db_session)
 
     # Poll
-    poll = await spawner._outpostspawner_db_poll(db_session)
+    poll, _ = await spawner._outpostspawner_db_poll(db_session)
 
     assert poll == 0
 
@@ -236,7 +236,7 @@ async def test_poll_no_mem(db_session):
     import asyncio
 
     await asyncio.sleep(2)
-    poll = await spawner._outpostspawner_db_poll(db_session)
+    poll, _ = await spawner._outpostspawner_db_poll(db_session)
     assert poll == 0
 
 
@@ -276,7 +276,7 @@ async def test_poll_no_mem_wait(db_session):
     assert spawner.proc is None
 
     # Poll without existing spawner in memory, should be still running
-    poll = await spawner._outpostspawner_db_poll(db_session)
+    poll, _ = await spawner._outpostspawner_db_poll(db_session)
     assert poll == None
 
 
@@ -303,7 +303,7 @@ async def test_stop_slow_process(db_session):
     await spawner._outpostspawner_db_start(db_session)
 
     # Poll
-    poll = await spawner._outpostspawner_db_poll(db_session)
+    poll, _ = await spawner._outpostspawner_db_poll(db_session)
     assert poll == None
 
     # Stop it
@@ -339,7 +339,7 @@ async def test_stop_already_stopped(db_session, client):
 
     sleep(5)
     # Poll
-    poll = await spawner._outpostspawner_db_poll(db_session)
+    poll, _ = await spawner._outpostspawner_db_poll(db_session)
     assert poll == 0
 
     # Stop it
@@ -375,7 +375,7 @@ async def test_stop_slow_process_no_mem(db_session):
     pid = spawner.pid
 
     # Poll
-    poll = await spawner._outpostspawner_db_poll(db_session)
+    poll, _ = await spawner._outpostspawner_db_poll(db_session)
     assert poll == None
 
     from spawner import _wrapper
@@ -393,7 +393,7 @@ async def test_stop_slow_process_no_mem(db_session):
     assert spawner.proc is None
 
     # Poll
-    poll = await spawner._outpostspawner_db_poll(db_session)
+    poll, _ = await spawner._outpostspawner_db_poll(db_session)
     assert poll == None
 
     # Stop it
