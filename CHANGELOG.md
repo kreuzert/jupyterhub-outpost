@@ -1,4 +1,7 @@
 # Changelog
+## 2.2.0 (2026-02-10)
+- Add support to return logs when polling or deleting
+
 ## 2.1.0 (2025-11-17)
 - Added JupyterHub Credit Service support
 
