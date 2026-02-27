@@ -562,7 +562,7 @@ class JupyterHubOutpost(Application):
         credit_config = get_credits_from_disk()
 
         if not credit_config.get("users", {}):
-            self.log.info(
+            self.log.debug(
                 f"User specific config not set. Use hub ({jupyterhub_name}) specific credits"
             )
             return hub_credits
@@ -700,7 +700,7 @@ class JupyterHubOutpost(Application):
         flavor_config = get_flavors_from_disk()
 
         if not flavor_config.get("users", {}):
-            self.log.info(
+            self.log.debug(
                 f"User specific config not set. Use hub ({jupyterhub_name}) specific flavors"
             )
             return hub_flavors
