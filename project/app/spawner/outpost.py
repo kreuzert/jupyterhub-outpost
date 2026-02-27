@@ -579,7 +579,7 @@ class JupyterHubOutpost(Application):
                 negate_authentication = value.get("negate_authentication", False)
                 matched = False
                 if negate_authentication:
-                    self.log.info(
+                    self.log.trace(
                         f"Negate logic for matching user to users.{key}.authentication. So users who don't match the authentication will use this user set"
                     )
                 for config_auth_key, config_auth_value in value.get(
@@ -717,7 +717,7 @@ class JupyterHubOutpost(Application):
                 negate_authentication = value.get("negate_authentication", False)
                 matched = False
                 if negate_authentication:
-                    self.log.info(
+                    self.log.trace(
                         f"Negate logic for matching user to users.{key}.authentication. So users who don't match the authentication will use this user set"
                     )
                 for config_auth_key, config_auth_value in value.get(
