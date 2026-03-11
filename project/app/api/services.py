@@ -260,7 +260,7 @@ async def add_service(
     internal_trust_bundles = dec_body.pop("internal_trust_bundles", {})
     user_options = dec_body.get("user_options", {})
     log.info(
-        f"Service {service.name} for {jupyterhub_name} uses user options {user_options}"
+        f"Service {service.name} for {jupyterhub_name} uses spawner.user_options {user_options}"
     )
     d["body"] = encrypt(dec_body)
 
