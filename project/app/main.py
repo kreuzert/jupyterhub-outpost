@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import inspect
 import logging
-import multiprocessing
 import os
 from contextlib import asynccontextmanager
 
@@ -28,7 +27,7 @@ log = logging.getLogger(logger_name)
 background_tasks = []
 
 
-async def check_running_services():
+async def check_running_services(sleep_timer=1800):
     wrapper = get_wrapper()
     wrapper.init_logging()
     wrapper.update_logging()
@@ -39,7 +38,6 @@ async def check_running_services():
 
     engine = create_engine(db_url, **engine_kwargs)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    sleep_timer = int(os.environ.get("JUPYTERHUB_CLEANUP_SLEEP_TIMER", "1800"))
     jhub_cleanup_names = os.environ.get("JUPYTERHUB_CLEANUP_NAMES", "")
     jhub_cleanup_urls = os.environ.get("JUPYTERHUB_CLEANUP_URLS", "")
     jhub_cleanup_tokens = os.environ.get("JUPYTERHUB_CLEANUP_TOKENS", "")
@@ -228,7 +226,7 @@ async def check_running_services():
         )
 
 
-async def check_enddates():
+async def check_enddates(sleep_timer=60):
     wrapper = get_wrapper()
     wrapper.init_logging()
     wrapper.update_logging()
@@ -239,7 +237,6 @@ async def check_enddates():
 
     engine = create_engine(db_url, **engine_kwargs)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    sleep_timer = int(os.environ.get("JUPYTERHUB_CHECK_ENDDATES_SLEEP_TIMER", "60"))
     while True:
         try:
             log.debug("Periodic check for ended services")
@@ -279,16 +276,6 @@ async def check_enddates():
             await asyncio.sleep(sleep_timer)
 
 
-def sync_check_enddates(loop):
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(check_enddates())
-
-
-def sync_check_services(loop):
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(check_running_services())
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     wrapper = get_wrapper()
@@ -297,42 +284,52 @@ async def lifespan(app: FastAPI):
 
     pid = os.getpid()
     lockfile = "/tmp/lifespan.lock"
-    if not os.path.exists(lockfile):
-        with open(lockfile, "w") as f:
-            f.write(str(pid))
+
+    is_leader = False
+
+    try:
+        # atomic lock creation
+        fd = os.open(lockfile, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(fd, str(pid).encode())
+        os.close(fd)
+        is_leader = True
+    except FileExistsError:
+        pass
+
+    if is_leader:
         print(f"Running lifespan init in first worker only ({pid}) ...")
-        # Your init logic here
         await recreate_tunnels()
+        if os.environ.get("CHECK_ENDDATES", "true").lower() in ["true", "1"]:
+            sleep_timer = int(
+                os.environ.get("JUPYTERHUB_CHECK_ENDDATES_SLEEP_TIMER", "60")
+            )
+            print(
+                f"Starting background task for checking enddates every {sleep_timer}seconds"
+            )
+            background_tasks.append(asyncio.create_task(check_enddates(sleep_timer)))
+        if os.environ.get("CHECK_SERVICES", "true").lower() in ["true", "1"]:
+            sleep_timer = int(os.environ.get("JUPYTERHUB_CLEANUP_SLEEP_TIMER", "1800"))
+            print(
+                f"Starting background task for checking running services every {sleep_timer}seconds"
+            )
+            background_tasks.append(
+                asyncio.create_task(check_running_services(sleep_timer))
+            )
         print(f"Running lifespan init in first worker only ({pid}) ... done")
     else:
         print(f"Skipping lifespan init in this worker ({pid})")
     yield
+    for task in background_tasks:
+        task.cancel()
+
+    await asyncio.gather(*background_tasks, return_exceptions=True)
+
+    if is_leader:
+        os.remove(lockfile)
     await shutdown_event()
 
 
 def create_application() -> FastAPI:
-    loop = None
-    if os.environ.get("CHECK_ENDDATES", "true").lower() in ["true", "1"]:
-        if not loop:
-            loop = asyncio.get_event_loop()
-        proc = multiprocessing.Process(target=sync_check_enddates, args=(loop,))
-        background_tasks.append(proc)
-        proc.start()
-    if os.environ.get("CHECK_SERVICES", "true").lower() in ["true", "1"]:
-        if not loop:
-            loop = asyncio.get_event_loop()
-        proc = multiprocessing.Process(target=sync_check_services, args=(loop,))
-        background_tasks.append(proc)
-        proc.start()
-    if os.environ.get("DEBUG", "false").lower() in ["true", "1"]:
-        import threading
-
-        if not loop:
-            loop = asyncio.new_event_loop()
-        # check_enddates = threading.Thread(target=sync_check_enddates, args=(loop,))
-        # check_enddates.start()
-        check_services = threading.Thread(target=sync_check_services, args=(loop,))
-        check_services.start()
     root_path = os.environ.get("OUTPOST_BASE_PATH", "")
     application = FastAPI(lifespan=lifespan, root_path=root_path)
     application.include_router(services_router)
