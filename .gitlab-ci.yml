@@ -16,6 +16,7 @@ unittests:
   before_script:
     - apk add build-base linux-headers && pip3 install -U pip && pip3 install -r ${CI_PROJECT_DIR}/devel/requirements_pip.txt
   script:
+    - OUTPOST_CRYPT_KEY=$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')
     - cd ${CI_PROJECT_DIR}/project && pytest -c tests/pytest.ini
   rules:
     - if: '$CI_COMMIT_MESSAGE !~ /^Add changelog for version.*/'
