@@ -4,7 +4,6 @@ import os
 from database import models as service_model
 from database import schemas as service_schema
 from database import SessionLocal
-from database.schemas import decrypt
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 

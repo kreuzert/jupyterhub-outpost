@@ -1,6 +1,7 @@
 import asyncio
 import copy
 import fnmatch
+import html
 import inspect
 import json
 import logging
@@ -174,6 +175,14 @@ class JupyterHubOutpost(Application):
 
             c.JupyterHubOutpost.allow_override = allow_override
 
+        """,
+    ).tag(config=True)
+
+    poll_requires_state = Bool(
+        default_value=False,
+        help="""
+        Whether the poll method requires the state to be stored before polling.
+        If True, JupyterHub Outpost will wait for the state of the Spawner to be stored before polling.
         """,
     ).tag(config=True)
 
@@ -1152,6 +1161,30 @@ class JupyterHubOutpost(Application):
                 db.commit()
                 return ret
 
+            def short_logs(self, log_list, lines):
+                if type(log_list) == str:
+                    log_list = log_list.split("\n")
+                log_list = [x.split("\n") for x in log_list]
+                log_list_clear = []
+                for l in log_list:
+                    if type(l) == list:
+                        log_list_clear.extend(l)
+                    else:
+                        log_list_clear.append(l)
+                if lines > 0:
+                    log_list_clear = log_list_clear[-lines:]
+                if lines < len(log_list_clear):
+                    log_list_clear.insert(0, "...")
+                return log_list_clear
+
+            def _prettify_error_logs(self, log_list, lines, summary):
+                log_list_short = self.short_logs(log_list, lines)
+                log_list_short_escaped = list(
+                    map(lambda x: html.escape(x), log_list_short)
+                )
+                logs_s = "<br>".join(log_list_short_escaped)
+                return f'<details open><summary style="color: red; font-weight: bold; cursor: pointer;">{summary} (click here to see logs)</summary>{logs_s}</details>'
+
             async def _outpostspawner_db_poll(self, db, collect_logs=False):
                 # Update from db
                 wrapper.update_logging()
@@ -1169,7 +1202,7 @@ class JupyterHubOutpost(Application):
                     if inspect.isawaitable(logs):
                         logs = await logs
 
-                if not service.state_stored:
+                if not service.state_stored and wrapper.poll_requires_state:
                     self.log.debug(
                         f"{self._log_name} - Start function not finished yet. Return None"
                     )
@@ -1186,6 +1219,42 @@ class JupyterHubOutpost(Application):
                 ret = self.poll()
                 if inspect.isawaitable(ret):
                     ret = await ret
+
+                if ret is not None and ret != 0:
+                    logs = []
+                    if hasattr(self, "get_jupyter_server_logs") and callable(
+                        getattr(self, "get_jupyter_server_logs")
+                    ):
+                        logs = self.get_jupyter_server_logs()
+                        if inspect.isawaitable(logs):
+                            logs = await logs
+
+                        event = {
+                            "progress": 99,
+                        }
+                        send_events = await wrapper.get_send_events(
+                            self.jupyterhub_name
+                        )
+                        if (
+                            self.get_env().get("JUPYTERHUB_EVENTS_URL", "")
+                            and send_events
+                        ):
+                            if logs:
+                                logs = self._prettify_error_logs(
+                                    logs, 10, "Could not start service."
+                                )
+                                event["html_message"] = logs
+                            else:
+                                event[
+                                    "html_message"
+                                ] = "Could not start service. No logs available."
+                            try:
+                                await self._outpostspawner_send_event(event)
+                            except HTTPClientError:
+                                self.log.exception(
+                                    f"{self._log_name} - Could not send event for {self._log_name}: {event.get('html_message', event.get('message', ''))}"
+                                )
+                            return ret, logs
 
                 if service:
                     service.last_update = datetime.now(timezone.utc)

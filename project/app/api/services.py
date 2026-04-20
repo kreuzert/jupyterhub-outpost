@@ -14,6 +14,7 @@ from database.utils import get_services_all
 from fastapi import APIRouter
 from fastapi import BackgroundTasks
 from fastapi import Depends
+from fastapi import HTTPException
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasicCredentials
@@ -106,7 +107,13 @@ async def get_services(
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     log.debug(f"Get service {service_name} for {jupyterhub_name}")
-    service = get_service(jupyterhub_name, service_name, start_id, db)
+    try:
+        service = get_service(jupyterhub_name, service_name, start_id, db)
+    except HTTPException as e:
+        if e.status_code == 404:
+            return JSONResponse(content={"status": 0, "logs": []}, status_code=200)
+        else:
+            raise e
 
     spawner = await get_spawner(
         jupyterhub_name,
@@ -132,7 +139,16 @@ async def delete_service(
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     # Check if service exists to throw correct error message
-    service = get_service(jupyterhub_name, service_name, start_id, db)
+    try:
+        service = get_service(jupyterhub_name, service_name, start_id, db)
+    except HTTPException as e:
+        if e.status_code == 404:
+            log.info(
+                f"Service {service_name} ({start_id}) for {jupyterhub_name} does not exist. No need to delete."
+            )
+            return JSONResponse(content={}, status_code=200)
+        else:
+            raise e
     collect_logs = request.query_params.get("collect_logs", "false").lower() == "true"
     if request.headers.get("execution-type", "sync") == "async":
         log.info(f"Delete service {service_name} for {jupyterhub_name} in background")
