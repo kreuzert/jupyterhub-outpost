@@ -1,6 +1,7 @@
 # Changelog
 ## 2.3.0 (2026-04-20)
-- Added c.JupyterHubOutpost.poll_requires_state (default=False). Allows for showing container errors during spawn.
+- Added c.JupyterHubOutpost.poll_requires_state (default=False). Allows for showing container errors during spawn. Set poll_requires_state to True to get the same behavior as before.
+
 ## 2.2.0 (2026-02-10)
 - Add support to return logs when polling or deleting
 
