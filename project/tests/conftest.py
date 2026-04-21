@@ -146,9 +146,10 @@ def set_user(monkeysession):
     monkeypatch = monkeysession
     monkeypatch.setenv("usernames", f"{auth_username};{auth_username2}")
     monkeypatch.setenv("passwords", f"{auth_username_passwd};{auth_username2_passwd}")
-    monkeypatch.setenv(
-        "OUTPOST_CRYPT_KEY", "UMmHjHvWjvObNBdjfICzbG8RK7-W-nujsMnN9AAVioU=s"
-    )
+    from cryptography.fernet import Fernet
+
+    fernet = Fernet.generate_key().decode()
+    monkeypatch.setenv("OUTPOST_CRYPT_KEY", fernet)
 
 
 @pytest.fixture(scope="function")
