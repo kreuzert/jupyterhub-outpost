@@ -8,6 +8,9 @@ stages:
 #
 # Always run unittest
 #
+# Update requirements.txt
+# pip install -U -r requirements.txt
+# pip freeze > requirements.txt
 ###
 unittests:
   stage: test
