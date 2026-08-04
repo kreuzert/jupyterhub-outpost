@@ -9,7 +9,7 @@ def get_credits_from_disk():
         return {}
     with open(path, "r") as f:
         credits_config = yaml.full_load(f)
-    return credits_config
+    return credits_config if credits_config is not None else {}
 
 
 def get_flavors_from_disk():
@@ -18,4 +18,4 @@ def get_flavors_from_disk():
         return {}
     with open(path, "r") as f:
         flavor_config = yaml.full_load(f)
-    return flavor_config
+    return flavor_config if flavor_config is not None else {}
