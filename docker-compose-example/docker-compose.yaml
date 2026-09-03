@@ -1,0 +1,52 @@
+services:
+    hub-db:
+        image: postgres:16.0-alpine # see https://github.com/docker-library/docs/blob/master/postgres/README.md for more info;
+        restart: unless-stopped
+        environment:
+            - POSTGRES_DB
+            - POSTGRES_USER
+            - POSTGRES_PASSWORD
+        volumes:
+            - hub-db_data:/var/lib/postgresql/data
+    adminer: # psql-admin-ui
+        image: adminer:latest
+        ports:
+            - "8081:8080"
+        environment:
+            - ADMINER_DEFAULT_SERVER=hub-db # for default service has to be 'db'
+            - ADMINER_DESIGN=nette
+        depends_on:
+            - hub-db
+        profiles: ["debug"]
+    jupyterhuboutpost:
+        build: outpost_image
+        container_name: outpost
+        ports:
+            - "8099:8080"
+            - "2222:22"
+        group_add:
+            - "988" # docker group for docker socket access
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - ./outpost/config:/mnt/outpost_config
+            - ./outpost/authorized_keys:/mnt/authorized_keys
+        environment:
+            - DOCKER_NETWORK_NAME=${COMPOSE_PROJECT_NAME}_default
+            # Database connection
+            - SQL_HOST=hub-db
+            - SQL_DATABASE=${POSTGRES_DB}
+            - SQL_USER=${POSTGRES_USER}
+            - SQL_PASSWORD=${POSTGRES_PASSWORD}
+            - SQL_TYPE=postgresql
+            - SQL_PORT=5432
+            - OUTPOST_CONFIG_FILE=/mnt/outpost_config/outpost_config.py
+            # Outpost specifics
+            - usernames
+            - passwords
+            - OUTPOST_CRYPT_KEY
+        restart: unless-stopped
+        depends_on:
+            - hub-db
+volumes:
+    # persistent volume for the db
+    hub-db_data:

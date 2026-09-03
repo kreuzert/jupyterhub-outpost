@@ -20,10 +20,6 @@ The JupyterHub Outpost service in combination with the OutpostSpawner enables a 
 - Supports the JupyterHub `internal_ssl` feature.
 - One JupyterHub Outpost can be connected to multiple JupyterHubs without the Hubs interfering with each other.
   
-## Requirements  
-  
-At least one JupyterHub running on a Kubernetes Cluster (recommended is the use of [Zero2JupyterHub](https://z2jh.jupyter.org/en/stable/)). It is not necessary that the JupyterHub Outpost service runs on Kubernetes, but recommended.  
-
 
 ## License
 

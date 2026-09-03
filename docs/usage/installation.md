@@ -1,17 +1,19 @@
 # Installation 
 
+## Kubernetes
+
 This section covers example configurations and instructions to install the [JupyterHub Outpost service](https://artifacthub.io/packages/helm/jupyter-jsc/jupyterhub-outpost) via helm. 
 
-## Local installation
+### Local installation
 
 This chapter shows a simple installation of the JupyterHub Outpost service on the same Kubernetes cluster as JupyterHub.  
 If you don't want to connect external JupyterHubs (meaning JupyterHubs running on a different Kubernetes cluster than your Outpost service) to your JupyterHub Outpost, you won't need ssh port-forwarding between JupyterHub and the Outpost service. The Kubernetes internal DNS can resolve the single-user notebook servers.
 
-### Requirements
+#### Requirements
 
 One Kubernetes cluster up and running with at least one JupyterHub installation (recommended is the use of [Zero2JupyterHub](https://z2jh.jupyter.org/en/stable/)).
 
-### Preparations
+#### Preparations
 
 We assume that the Outpost service will run in the `outpost` namespace. To authenticate the JupyterHub instance, we have to create a Kubernetes secret  in that namespace with username+password. 
 
@@ -34,7 +36,7 @@ SECRET_KEY=$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.ge
 kubectl -n outpost create secret generic outpost-cryptkey --from-literal=secret_key=${SECRET_KEY}
 ```
 
-### Configuration
+#### Configuration
 Helm values:
 
 ```bash
@@ -46,7 +48,7 @@ outpostUsers: outpost-users
 EOF
 ```
 
-### Installation
+#### Installation
 
 ```bash
 # Add JupyterHub Outpost chart repository
@@ -59,16 +61,16 @@ helm upgrade --install --create-namespace --version <version> --namespace outpos
 Afterwards, the administrator of each connected JupyterHub has to [update the JupyterHub OutpostSpawner configuration](https://jupyterhub-outpostspawner.readthedocs.io/en/latest/usage/installation.html) with the correct IP address + credentials for this JupyterHub Outpost service.  
 
 
-## Remote installation
+### Remote installation
 
 This chapter shows a simple installation of the JupyterHub Outpost service on a different Kubernetes cluster than the JupyterHub.  
 
-### Requirements
+#### Requirements
 
 Two Kubernetes clusters up and running.  
 One with at least one JupyterHub installation (recommended is the use of [Zero2JupyterHub](https://z2jh.jupyter.org/en/stable/)), the other is used to install the JupyterHub Outpost service.
 
-### Preparations
+#### Preparations
 
 We assume that the Outpost service will run in the `outpost` namespace. To authenticate the JupyterHub instance, we have to create a Kubernetes secret in that namespace with username+password. 
 
@@ -91,7 +93,7 @@ SECRET_KEY=$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.ge
 kubectl -n outpost create secret generic outpost-cryptkey --from-literal=secret_key=${SECRET_KEY}
 ```
 
-### Configuration
+#### Configuration
 
 You have to ask the administrator of all JupyterHubs you want to connect for their ssh-publickey. In this scenario, we're using NodePort as service types. JupyterHub must be able to reach the JupyterHub Outpost service at the ports `30080` (access to the Outpost API) and `30022` (access to ssh daemon for port-forwarding). 
 
@@ -126,7 +128,7 @@ EOF
 You can use the same [options](https://manpages.debian.org/experimental/openssh-server/authorized_keys.5.en.html#AUTHORIZED_KEYS_FILE_FORMAT) for each public key as in ~/.ssh/authorized_keys. At least port-forwarding must be allowed.
 ```
 
-### Installation
+#### Installation
 
 ```bash
 # Add JupyterHub Outpost chart repository
@@ -139,14 +141,14 @@ helm upgrade --install --create-namespace --version <version> --namespace outpos
 Ensure that everything is running. Double check that the ports 30080 and 30022 are reachable from JupyterHub.  
 Afterwards, you have to [update the JupyterHub OutpostSpawner configuration](https://jupyterhub-outpostspawner.readthedocs.io/en/latest/usage/installation.html) with the correct IP address + credentials for this JupyterHub Outpost service.  
 
-## Encryption via ingress
+### Encryption via ingress
 
 When running JupyterHub Outpost on production, you should ensure a certain level of encryption. An easy way is to use an ingress controller with a certificate.
 For this example we've installed [cert-manager, hairpin-proxy, let's encrypt issuer](https://gitlab.jsc.fz-juelich.de/kaas/fleet-deployments/-/tree/cert-manager) and [ingress-nginx](https://artifacthub.io/packages/helm/ingress-nginx/ingress-nginx). If you already have a certificate, you will only need ingress-nginx.
 
 This example is an addition to the examples above.
 
-### Configuration
+#### Configuration
 
 ```bash
 FLOATING_IP_SSH=<EXTERNAL_IP_FOR_SSH_ACCESS>
@@ -182,7 +184,7 @@ EOF
 JupyterHub will now be able to reach the JupyterHub Outpost API at `https://myremoteoutpost.com/services` and the ssh daemon for port-forwarding at `${FLOATING_IP_SSH}` on port 22.
 You have to send each connected JupyterHub its credentials (defined in `outpost-users`), the `servicessh` loadBalancerIP address and the URL of your outpost service.
 
-### Prefixes
+#### Prefixes
 
 If your ingress exposes the Outpost API under a **URL prefix** (for example `https://myremoteoutpost.com/outpost/services`), you need to inform the Outpost backend of this prefix.
 
@@ -204,3 +206,7 @@ extraEnvVars:
 ```
 
 > **Tip:** You can also achieve the same effect by configuring your ingress to **strip the prefix** using a rewrite rule, but the environment variable approach is usually simpler and avoids custom path rewrites.
+
+## Docker Compose
+While using Kubernetes is recommended for the JupyterHub Outpost, it is not the only way to run the Outpost.  
+You can find an example of a docker-compose setup [here](https://github.com/kreuzert/jupyterhub-outpost/tree/main/docker-compose-example).  

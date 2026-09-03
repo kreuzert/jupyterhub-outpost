@@ -1,0 +1,34 @@
+file:
+  enabled: false
+  level: 20
+  formatter: simple
+  filename: /tmp/logs.log
+  when: h
+  interval: 1
+  backupCount: 0
+  encoding: 
+  delay: false
+  utc: false
+  atTime: 
+  errors: 
+stream:
+  enabled: true
+  level: 10
+  formatter: simple
+  stream: 
+syslog:
+  enabled: false
+  level: 10
+  formatter: json
+  address: !!python/tuple [10.10.0.100, 5141]
+  socktype: ext://socket.SOCK_DGRAM
+smtp:
+  enabled: false
+  level: 50
+  formatter: simple
+  mailhost: mail.domain.de
+  fromaddr: smtphandler@domain.de
+  toaddrs: []
+  subject: SMTPHandler - Log
+  secure: 
+  timeout: 1
