@@ -19,3 +19,15 @@ def get_flavors_from_disk():
     with open(path, "r") as f:
         flavor_config = yaml.full_load(f)
     return flavor_config if flavor_config is not None else {}
+
+
+def get_forbidden_users_from_disk():
+    path = os.environ.get("OUTPOST_BLACKLIST_PATH", "/mnt/blacklist/blacklist.yaml")
+    if (not os.path.exists(path)) or (not os.path.isfile(path)):
+        return []
+    with open(path, "r") as f:
+        blacklist_config = yaml.full_load(f)
+    if blacklist_config is None:
+        return []
+    return blacklist_config.get("forbidden_users", []) or []
+
