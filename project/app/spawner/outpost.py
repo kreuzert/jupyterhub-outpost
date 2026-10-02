@@ -207,6 +207,49 @@ class JupyterHubOutpost(Application):
         """,
     ).tag(config=True)
 
+    check_allowed = Any(
+        default_value=None,
+        allow_none=True,
+        config=True,
+        help="""
+        An optional hook function you can implement to decide if a user is
+        allowed to start a single-user server. This hook is invoked for every
+        request that tries to create a new service (i.e. spawn a notebook) via
+        the Outpost, before the service is validated and stored in the
+        database.
+
+        This is intended as a mechanism to blacklist specific users. The
+        parameter for this function is the decrypted request body, which
+        contains the `env` dictionary with the reliable user identifier
+        `JUPYTERHUB_USER` (the literal username forwarded from the remote
+        portal by JupyterHub).
+
+        If the start is not allowed, the function should raise an exception.
+        The resulting error is surfaced to JupyterHub through the existing
+        exception handling mechanism (HTTP 419).
+
+        This may be a coroutine.
+
+        Example::
+
+            def check_allowed(dec_body):
+                blacklist = {"user@example.org"}
+                user = dec_body.get("env", {}).get("JUPYTERHUB_USER", "")
+                if user in blacklist:
+                    raise Exception(f"User {user} is not allowed to start a notebook")
+
+            c.JupyterHubOutpost.check_allowed = check_allowed
+
+        """,
+    )
+
+    async def run_check_allowed(self, dec_body):
+        if not self.check_allowed:
+            return
+        ret = self.check_allowed(copy.deepcopy(dec_body))
+        if inspect.isawaitable(ret):
+            await ret
+
     request_kwargs = Union(
         [Dict(), Callable()],
         default_value={"validate_cert": False, "request_timeout": 10},

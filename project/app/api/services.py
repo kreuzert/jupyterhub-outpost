@@ -250,6 +250,9 @@ async def add_service(
 ) -> JSONResponse:
     log.info(f"Create service {service.name} for {jupyterhub_name}")
     jupyterhub = get_or_create_jupyterhub(jupyterhub_name, db)
+    wrapper = get_wrapper()
+    dec_body_check = decrypt(service.body)
+    await wrapper.run_check_allowed(dec_body_check)
     flavor = await validate_flavor(service, jupyterhub_name, request, db)
     d = service.model_dump()
 
