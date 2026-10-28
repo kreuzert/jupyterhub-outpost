@@ -1,4 +1,10 @@
 # Changelog
+## 2.3.2 (2026-10-28)
+- Security update; Updated packages for python + apk
+
+## 2.3.1 (2026-08-06)
+- Security update; Updated packages for python + apk
+
 ## 2.3.0 (2026-04-20)
 - Added c.JupyterHubOutpost.poll_requires_state (default=False). Allows for showing container errors during spawn. Set poll_requires_state to True to get the same behavior as before.
 
