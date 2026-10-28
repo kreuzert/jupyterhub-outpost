@@ -8,13 +8,12 @@ Checks the two frozen files of the production image against their sources:
     release used by project/Dockerfile (parsed from the FROM line), main +
     community repos
 
-Version policy (keep boring updates boring):
-  * a newer release within the pinned *series* (same major version; for 0.x
-    packages same major.minor, where the minor is the breaking level) is
-    applied automatically;
-  * a newer *major* release is never applied - it is only reported (job log
-    + MR description), because majors usually bring breaking changes. Review
-    it and bump the pin by hand when you adopt it.
+Version policy:
+  * a newer release with the same leading (first) version number is applied
+    automatically (e.g. 2.9.x within 2.x, all 0.x within 0);
+  * a release with a different first version number is never applied - it is
+    only reported (job log + MR description). Review it and bump the pin by
+    hand when you adopt it.
 
 Pre-releases and fully yanked releases are ignored. The script is safe to
 run repeatedly: it always converges to "latest within series".
@@ -116,9 +115,7 @@ def series_prefix(v: Version) -> tuple[int, ...]:
     rel = v.release
     if not rel:
         return ()
-    if rel[0] == 0 and len(rel) >= 2:
-        return rel[:2]  # 0.x: the minor is the breaking level
-    return rel[:1]
+    return rel[:1]  # the first version number
 
 
 def check_pypi(pins: list[tuple[str, str]]) -> None:
@@ -238,10 +235,7 @@ def check_apk(pins: list[tuple[str, str]]) -> None:
             )
             continue
         if it > pt:
-            same_series = pt[0] == it[0]
-            if same_series and pt[0] == 0:
-                same_series = (pt[1:2] or (0,)) == (it[1:2] or (0,))
-            if same_series:
+            if pt[0] == it[0]:
                 applied.append(("alpine", name, version, cur))
             else:
                 pending_major.append(("alpine", name, version, cur))
