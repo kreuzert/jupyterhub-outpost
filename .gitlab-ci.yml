@@ -29,8 +29,8 @@ unittests:
 #
 # Check the pinned packages (pip + apk) of the production image for newer
 # minor/patch releases and collect them on the single, long-lived branch
-# ci/update-packages (one accumulating merge request, see README "Package
-# updates"). New major versions are only reported, never applied.
+# ci/update-packages (one accumulating merge request). New major versions
+# are only reported, never applied.
 #
 # Requires a project access token in the CI variable GL_TOKEN with the
 # `api` and `write_repository` scopes.
@@ -45,11 +45,21 @@ update-packages:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: manual
+  before_script:
+    # The python slim image does not ship git, which is needed to commit
+    # and push the updated pins.
+    - apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
   script:
     - pip3 install --quiet packaging
     - python3 update-packages.py --yes --report-file package-update-report.md
     - |
-      if [[ -z "$(git diff --name-only -- project/requirements_pip.txt project/requirements_apk.txt)" ]]; then
+      # Capture the diff separately: if git fails, the empty output of the
+      # command substitution must not be mistaken for "nothing changed".
+      if ! CHANGED="$(git diff --name-only -- project/requirements_pip.txt project/requirements_apk.txt)"; then
+        echo "error: git diff failed" >&2
+        exit 1
+      fi
+      if [[ -z "$CHANGED" ]]; then
         echo "no new minor/patch versions - nothing to update."
         exit 0
       fi
