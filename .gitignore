@@ -6,6 +6,9 @@ devel/devel
 devel/devel.pub
 devel/launch.json
 
+# package-update job (see README "Package updates") #
+package-update-report.md
+
 # local tests #
 uwsgi.local.ini 
 

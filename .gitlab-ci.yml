@@ -1,5 +1,6 @@
 stages:
   - test
+  - update
   - build
   - prepare-release
   - release
@@ -22,6 +23,71 @@ unittests:
     - cd ${CI_PROJECT_DIR}/project && pytest -c tests/pytest.ini
   rules:
     - if: '$CI_COMMIT_MESSAGE !~ /^Add changelog for version.*/'
+
+
+###
+#
+# Check the pinned packages (pip + apk) of the production image for newer
+# minor/patch releases and collect them on the single, long-lived branch
+# ci/update-packages (one accumulating merge request, see README "Package
+# updates"). New major versions are only reported, never applied.
+#
+# Requires a project access token in the CI variable GL_TOKEN with the
+# `api` and `write_repository` scopes.
+#
+###
+
+update-packages:
+  stage: update
+  image: python:3.13-slim
+  needs: []
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+  script:
+    - pip3 install --quiet packaging
+    - python3 update-packages.py --yes --report-file package-update-report.md
+    - |
+      if [[ -z "$(git diff --name-only -- project/requirements_pip.txt project/requirements_apk.txt)" ]]; then
+        echo "no new minor/patch versions - nothing to update."
+        exit 0
+      fi
+      test -n "${GL_TOKEN:-}" || { echo "error: GL_TOKEN (project access token) is required - it needs BOTH the api and write_repository scopes" >&2; exit 1; }
+      # Fixed branch name: every run recomputes the updates from the current
+      # main tip and force-pushes the same branch, so GitLab keeps a single
+      # accumulating MR open (create-mr.py reuses it and refreshes its
+      # description instead of stacking duplicate MRs).
+      BRANCH="ci/update-packages"
+      git config user.name "GitLab CI"
+      git config user.email "gitlab-ci@localhost"
+      git checkout -B "$BRANCH"
+      git add project/requirements_pip.txt project/requirements_apk.txt
+      git commit -m "chore: update pip/apk packages (minor/patch only)" -m "Automated by the scheduled update-packages job."
+      # The default CI origin authenticates with the read-only CI_JOB_TOKEN,
+      # so it cannot push. Push explicitly with the project access token
+      # GL_TOKEN instead - for a project token any non-blank username works.
+      # The checkout remote already has scheme + job-token credentials embedded
+      # (https://gitlab-ci-token:***@host/...), so strip both before adding ours.
+      ORIGIN=$(git remote get-url origin)
+      HOSTPATH=${ORIGIN#*://}   # drop scheme -> gitlab-ci-token:***@host/path
+      HOSTPATH=${HOSTPATH#*@}   # drop embedded user:pass@ -> host/path
+      PUSH_URL="https://ci-bot:${GL_TOKEN}@${HOSTPATH}"
+      # Push via a temp file and scrub the token from git's output: on a
+      # failed push git prints the full URL (token included) into the log.
+      if ! git push -f "$PUSH_URL" "$BRANCH" > /tmp/push.out 2>&1; then
+        sed "s/${GL_TOKEN}/REDACTED/g" /tmp/push.out >&2
+        echo "error: git push failed" >&2
+        exit 1
+      fi
+      sed "s/${GL_TOKEN}/REDACTED/g" /tmp/push.out
+      rm -f /tmp/push.out
+      echo "created branch: $BRANCH"
+      python3 create-mr.py "$BRANCH" package-update-report.md
+  artifacts:
+    paths:
+      - package-update-report.md
+    when: always
 
 
 ###
