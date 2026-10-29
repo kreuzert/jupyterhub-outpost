@@ -22,9 +22,10 @@ if SQL_TYPE in ["sqlite", "sqlite+pysqlite"]:
     db_url = f"{SQL_TYPE}:///{SQL_DATABASE_URL}"
     engine_kwargs.update({"connect_args": {"check_same_thread": False}})
 elif SQL_TYPE == "postgresql":
-    db_url = (
-        f"{SQL_TYPE}://{SQL_USER}:{SQL_PASSWORD}@{SQL_HOST}:{SQL_PORT}/{SQL_DATABASE}"
-    )
+    # Name the DBAPI driver explicitly: since SQLAlchemy 2.1, a plain
+    # "postgresql://" URL implicitly selects the psycopg3 driver, while
+    # this image only installs psycopg2 (see requirements_pip.txt).
+    db_url = f"postgresql+psycopg2://{SQL_USER}:{SQL_PASSWORD}@{SQL_HOST}:{SQL_PORT}/{SQL_DATABASE}"
 else:
     raise Exception(
         f"SQL_TYPE {SQL_TYPE} not supported. Use 'sqlite', 'sqlite+pysqlite' or 'postgresql'."
