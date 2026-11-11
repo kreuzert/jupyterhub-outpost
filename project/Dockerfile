@@ -27,6 +27,20 @@ RUN apk add --virtual=build_dependencies build-base && \
     /etc/shadow && \
     ssh-keygen -A 
 
+# The official python image ships a CycloneDX SBOM for pip's *vendored*
+# dependencies (site-packages/pip/_vendor/bom.cdx.json). Scanners (trivy,
+# artifacthub) treat every listed component as an installed package,
+# producing false positives - e.g. the copy of setuptools (70.3.0) pip
+# vendors internally is reported as CVE-2025-47273 even though the
+# actually installed packages come from requirements_pip.txt. The file is
+# pure metadata that pip does not use at runtime, so remove it to keep
+# scans limited to what is really installed.
+#
+# This must run AFTER the pip upgrade above: upgrading pip re-copies the
+# SBOM alongside the new version, so deleting it before the upgrade
+# would leave the image dirty again.
+RUN find /usr/local/lib -name bom.cdx.json -path "*/pip/_vendor/*" -delete
+
 COPY ./project/app ${APP_HOME}
 COPY ./project/entrypoint.sh /src/entrypoint.sh
 COPY ./project/gunicorn_http.py ${APP_HOME}/gunicorn_http.py
