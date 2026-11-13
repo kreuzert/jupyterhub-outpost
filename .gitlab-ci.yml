@@ -179,6 +179,87 @@ build-tag:
   rules:
     - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+(-.+)$/'
 
+
+###
+#
+# One-click release: after the plain X.Y.Z release tag is in place (or any
+# time on the default branch), run this job manually. Unlike jhub, outpost
+# has no pinned base version to anchor on, so the next release tag is
+# derived from the newest version tag on the remote (only plain X.Y.Z and
+# X.Y.Z-post.i tags count, -rcN pre-release tags are ignored):
+#   - newest tag is plain X.Y.Z       ->  X.Y.Z-post.1
+#   - newest tag is X.Y.Z-post.i      ->  X.Y.Z-post.(i+1)
+# The tag is created on the current commit and pushed; pushing the tag
+# automatically triggers the build-tag and build-tag-docker jobs (separate
+# tag pipeline), which build + push the images under that tag.
+#
+# `needs: []` (DAG model) on purpose: in the default stage model a pending
+# MANUAL job would stay blocked until every earlier stage finished.
+#
+###
+
+tag-release:
+  stage: release
+  image: python:3.14-trixie
+  needs: []
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+  script:
+    - |
+      # Newest version tag on the remote, in PEP 440 order (X.Y.Z < X.Y.Z-post.i).
+      # Tags that are neither a plain release nor a -post.i release (e.g. -rcN)
+      # are skipped, and so are the ^{} lines git ls-remote prints for
+      # annotated tags. The python:3.14 image does not ship `packaging`, so
+      # the ordering uses a small key function instead.
+      LATEST=$(git ls-remote --tags origin | sed 's|.*refs/tags/||' | python3 -c '
+      import re, sys
+
+      def key(tag):
+          m = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)(?:-post\.?(\d+))?", tag)
+          if m is None:
+              return None
+          major, minor, patch, post = m.groups()
+          return (int(major), int(minor), int(patch), 0 if post is None else 1, int(post or 0))
+
+      tags = [line.strip() for line in sys.stdin if line.strip()]
+      tags = [tag for tag in tags if key(tag) is not None]
+      if not tags:
+          sys.exit("error: no X.Y.Z or X.Y.Z-post.i version tags found on the remote")
+      print(max(tags, key=key))
+      ')
+      echo "latest tag: ${LATEST}"
+      POST_RE='^([0-9]+\.[0-9]+\.[0-9]+)-post\.?([0-9]+)$'
+      if [[ "$LATEST" =~ $POST_RE ]]; then
+        # Newest tag is X.Y.Z-post.i -> next release is X.Y.Z-post.(i+1)
+        N=${BASH_REMATCH[2]}
+        TAG="${BASH_REMATCH[1]}-post.$(( N + 1 ))"
+      else
+        # Newest tag is plain X.Y.Z -> next release is X.Y.Z-post.1
+        TAG="${LATEST}-post.1"
+      fi
+      echo "latest tag: ${LATEST}  ->  next: ${TAG}"
+      test -n "$(git ls-remote --tags origin "refs/tags/$TAG" 2>/dev/null)" && \
+        { echo "tag $TAG already exists" >&2; exit 1; }
+      git config user.name "GitLab CI"
+      git config user.email "gitlab-ci@localhost"
+      git tag -a "$TAG" -m "jupyterhub-outpost release ${TAG} (latest ${LATEST})" "${CI_COMMIT_SHA}"
+      test -n "${GL_TOKEN:-}" || { echo "error: GL_TOKEN (project access token) is required - it needs BOTH the api and write_repository scopes" >&2; exit 1; }
+      ORIGIN=$(git remote get-url origin)
+      HOSTPATH=${ORIGIN#*://}   # drop scheme -> gitlab-ci-token:***@host/path
+      HOSTPATH=${HOSTPATH#*@}   # drop embedded user:pass@ -> host/path
+      PUSH_URL="https://ci-bot:${GL_TOKEN}@${HOSTPATH}"
+      # Push via a temp file and scrub the token from git's output: on a
+      # failed push git prints the full URL (token included) into the log.
+      if ! git push "$PUSH_URL" "$TAG" > /tmp/push.out 2>&1; then
+        sed "s/${GL_TOKEN}/REDACTED/g" /tmp/push.out >&2
+        echo "error: git push failed" >&2
+        exit 1
+      fi
+      sed "s/${GL_TOKEN}/REDACTED/g" /tmp/push.out
+      rm -f /tmp/push.out
+      echo "released tag: $TAG  (build-tag and build-tag-docker jobs will now build + push the images)"
+
 ###
 #
 # Prepare release notes
