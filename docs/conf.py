@@ -67,8 +67,13 @@ html_title = "JupyterHub Outpost"
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
+# Point the source buttons at the GitLab repository (the source of truth;
+# the GitHub repo is a read-only mirror).
 html_theme_options = {
-    "repository_url": "https://github.com/kreuzert/jupyterhub-outpost",
+    "repository_url": "https://gitlab.jsc.fz-juelich.de/jupyterjsc/k8s/images/jupyterhub-outpost",
+    "repository_provider": "gitlab",
+    "repository_branch": "main",
+    "path_to_docs": "docs/",
     "use_issues_button": True,
     "use_repository_button": True,
     "use_edit_page_button": True,
