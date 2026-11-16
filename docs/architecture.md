@@ -59,7 +59,7 @@ Cf. [here](https://jupyterhub.readthedocs.io/en/latest/reference/technical-overv
 
 ## Delayed Tunneling
 
-This setup shows the start of a single-user server on an external system where the service address of the single-user server cannot be determined during the start process. This may for example be the case if you have configured a Spawner which spawns single-user server on remote Batch systems. The single-user server has to contact the [OutpostSpawner](https://jupyterhub-outpostspawner.readthedocs.io/en/latest/apiendpoints.html) itself, once its location is settled.
+This setup shows the start of a single-user server on an external system where the service address of the single-user server cannot be determined during the start process. This may for example be the case if you have configured a Spawner which spawns single-user server on remote Batch systems. The single-user server has to contact the [OutpostSpawner](https://kreuzert.github.io/jupyterhub-outpostspawner/apiendpoints/) itself, once its location is settled.
 
 The use of the additional port forward pod is optional and SSH tunnels to the single-user servers may be managed by the Hub pod itself. In any case, when one tunnels directly to the remote system where the notebook server runs, port 22 of the system (or whichever port is used for ssh) must be reachable for the pod which manages the tunnels.
 

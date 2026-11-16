@@ -58,7 +58,7 @@ helm repo update
 helm upgrade --install --create-namespace --version <version> --namespace outpost -f outpost_values.yaml outpost jupyter-jsc/jupyterhub-outpost
 ```
 
-Afterwards, the administrator of each connected JupyterHub has to [update the JupyterHub OutpostSpawner configuration](https://jupyterhub-outpostspawner.readthedocs.io/en/latest/usage/installation.html) with the correct IP address + credentials for this JupyterHub Outpost service.  
+Afterwards, the administrator of each connected JupyterHub has to [update the JupyterHub OutpostSpawner configuration](https://kreuzert.github.io/jupyterhub-outpostspawner/usage/installation/) with the correct IP address + credentials for this JupyterHub Outpost service.  
 
 
 ### Remote installation
@@ -139,7 +139,7 @@ helm upgrade --install --create-namespace --version <version> --namespace outpos
 ```
 
 Ensure that everything is running. Double check that the ports 30080 and 30022 are reachable from JupyterHub.  
-Afterwards, you have to [update the JupyterHub OutpostSpawner configuration](https://jupyterhub-outpostspawner.readthedocs.io/en/latest/usage/installation.html) with the correct IP address + credentials for this JupyterHub Outpost service.  
+Afterwards, you have to [update the JupyterHub OutpostSpawner configuration](https://kreuzert.github.io/jupyterhub-outpostspawner/usage/installation/) with the correct IP address + credentials for this JupyterHub Outpost service.  
 
 ### Encryption via ingress
 

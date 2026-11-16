@@ -55,7 +55,7 @@ Update or install JupyterHub Outpost with values.yaml file:
 helm upgrade --install -f values.yaml --namespace outpost outpost jupyterhub-outpost/jupyterhub-outpost
 ```
 
-The JupyterHub OutpostSpawner can override each `c.<Spawner>.<key>` value using the `custom_misc` feature. For more information, take a look at the [OutpostSpawner](https://jupyterhub-outpostspawner.readthedocs.io/en/latest/) configuration. In the example above, `custom_misc` could be used to dynamically override the `c.KubeSpawner.image` value. 
+The JupyterHub OutpostSpawner can override each `c.<Spawner>.<key>` value using the `custom_misc` feature. For more information, take a look at the [OutpostSpawner](https://kreuzert.github.io/jupyterhub-outpostspawner/) configuration. In the example above, `custom_misc` could be used to dynamically override the `c.KubeSpawner.image` value. 
 
 ## Customize Logging
 For the logging configuration, the Outpost offers these options (corresponding to the [logging options](https://jupyterhub.readthedocs.io/en/stable/reference/api/app.html#jupyterhub.app.JupyterHub.log_datefmt) of JupyterHub):
@@ -98,7 +98,7 @@ c.JupyterHubOutpost.sanitize_start_response = sanitize_start_response
 ```
 
 ```{admonition} Note
-If you don't know where your single-user server will be running at the end of the `start` function, you have to return an empty string. In that case, JupyterHub OutpostSpawner won't create a ssh port-forwarding process. Instead, the start process of the single-user server has to send a POST request to the `$JUPYTERHUB_SETUPTUNNEL_URL` url. Have a look at the API Endpoints of the OutpostSpawner (https://jupyterhub-outpostspawner.readthedocs.io/en/latest/apiendpoints.html) for more information.
+If you don't know where your single-user server will be running at the end of the `start` function, you have to return an empty string. In that case, JupyterHub OutpostSpawner won't create a ssh port-forwarding process. Instead, the start process of the single-user server has to send a POST request to the `$JUPYTERHUB_SETUPTUNNEL_URL` url. Have a look at the API Endpoints of the OutpostSpawner (https://kreuzert.github.io/jupyterhub-outpostspawner/apiendpoints/) for more information.
 ```
 
 ## Disable JupyterHub configuration overwrite
