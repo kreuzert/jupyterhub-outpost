@@ -1,4 +1,4 @@
-[![Documentation Status](https://readthedocs.org/projects/jupyterhub-outpost/badge/?version=latest)](https://jupyterhub-outpost.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://github.com/kreuzert/jupyterhub-outpost/actions/workflows/docs.yml/badge.svg)](https://kreuzert.github.io/jupyterhub-outpost/)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/jupyterhub-outpost)](https://artifacthub.io/packages/search?repo=jupyterhub-outpost)
 
 # JupyterHub Outpost
