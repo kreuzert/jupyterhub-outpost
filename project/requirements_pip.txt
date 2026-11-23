@@ -15,7 +15,7 @@ cachetools==8.0.2
 certifi==2026.11.20
 certipy==0.2.3
 cffi==2.1.1
-charset-normalizer==3.5.2
+charset-normalizer==3.5.3
 click==8.5.1
 cryptography==50.0.2
 defusedxml==0.7.1
