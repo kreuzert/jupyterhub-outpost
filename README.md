@@ -7,7 +7,7 @@ JupyterHub Outpost can be used as an additional, external source to start and ma
 
 ## Documentation
 
-Link to [documentation](https://jupyterhub-outpost.readthedocs.io).  
+Link to [documentation](https://kreuzert.github.io/jupyterhub-outpost/).  
 
 ## Overview  
   
