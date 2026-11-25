@@ -19,7 +19,7 @@ charset-normalizer==3.5.3
 click==8.5.1
 cryptography==50.0.2
 defusedxml==0.7.1
-durationpy==0.11
+durationpy==0.12
 escapism==1.1.0
 fastapi==0.165.0
 fastjsonschema==2.22.3
